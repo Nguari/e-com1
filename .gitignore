@@ -1,0 +1,15 @@
+#Dépendances
+/vendor/
+composer.lock
+
+# Variables d'environnement
+.env
+
+# Uploads
+/public/uploads/*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
