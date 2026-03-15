@@ -1,12 +1,19 @@
 <?php
+
+use Dotenv\Dotenv;
+
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 /**
  * Fichier de configuration de l'application.
  * 
- * Charger les variables d'environnement depuis le fichier .env
- * et définir les constantes de l'application.
- * 
- * Ce fichier doit inclus au début de l'application
- * (dans public/index.php ou les scripts de test).
+ * Charge les variables d'environnement depuis le fichier .env
+ * et définit les constantes de l'application.
  * 
  * @author Babs
  */
@@ -14,59 +21,68 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 // Charger les variables d'environnement depuis le fichier .env
-use Dotenv\Dotenv;
-
 $dotenv = Dotenv::createImmutable(dirname(__DIR__));
 $dotenv->load();
 
 // ===== CONSTANTES DE L'APPLICATION =====
-define('APP_NAME', $_ENV['APP_NAME'] ?? 'Ngaary SHOP');
-define('APP_ENV', $_ENV['APP_ENV'] ?? 'development');
-define('APP_URL', $_ENV['APP_URL'] ?? 'http://e-com.test/public');
-define('ROOT_PATH', dirname(__DIR__));
-define('PUBLIC_PATH', ROOT_PATH . '/public');
-define('VIEW_PATH', ROOT_PATH . '/views');
+define('DS',          DIRECTORY_SEPARATOR);
+define('APP_NAME',    $_ENV['APP_NAME'] ?? 'Ngaary SHOP');
+define('APP_ENV',     $_ENV['APP_ENV']  ?? 'development');
+define('APP_URL',     $_ENV['APP_URL']  ?? 'http://e-com.test/public');
+define('ROOT_PATH',   dirname(__DIR__));
+define('PUBLIC_PATH', ROOT_PATH . DS . 'public');
+define('VIEW_PATH',   ROOT_PATH . DS . 'views');
+define('SRC_PATH',    ROOT_PATH . DS . 'src');
+define('URL_ROOT',    $_ENV['APP_URL']  ?? 'http://e-com.test/public');
 
 // ===== CONSTANTES DE LA BASE DE DONNÉES =====
-define('DB_HOST', $_ENV['DB_HOST'] ?? 'localhost');
-define('DB_PORT', $_ENV['DB_PORT'] ?? 3306);
+define('DB_HOST',     $_ENV['DB_HOST']     ?? '127.0.0.1');
+define('DB_PORT',     $_ENV['DB_PORT']     ?? 3306);
 define('DB_DATABASE', $_ENV['DB_DATABASE'] ?? 'ecommerce_db');
 define('DB_USERNAME', $_ENV['DB_USERNAME'] ?? 'root');
 define('DB_PASSWORD', $_ENV['DB_PASSWORD'] ?? 'Nguari2006');
 
-// ===== CONFIGURATION DE SECURITE =====
-/**
- * Durée de vie de la session en secondes
- * Par défaut : 7200 secondes (2 heures)
- */
-define('SESSION_LIFETIME', (int)($_ENV['SESSION_LIFETIME'] ?? 7200));
+// ===== CONFIGURATION DE SÉCURITÉ =====
+define('SESSION_LIFETIME',    (int)($_ENV['SESSION_LIFETIME']    ?? 7200));
+define('PASSWORD_MIN_LENGTH', (int)($_ENV['PASSWORD_MIN_LENGTH'] ?? 8));
 
-/**
- * Longueur minimale du mot de passe
- * Par défaut : 8 caractères
- */
-define('PASSWORD_MIN_LENGTH', $_ENV['PASSWORD_MIN_LENGTH'] ?? 8);
-
-date_default_timezone_set('Africa/Dakar'); // Définir le fuseau horaire par défaut
+// ===== FUSEAU HORAIRE =====
+date_default_timezone_set('Africa/Dakar');
 
 // ===== HELPERS =====
 
 /**
- * Générer une URL complète pour une route donnée.
- * 
- * @param string $path Le chemin relatif de la route (ex: "/login").
- * @return string L'URL complète.
+ * Générer une URL web complète.
+ * Toujours avec / (c'est une URL, pas un chemin fichier)
  */
 function url(string $path = ''): string {
     return APP_URL . '/' . ltrim($path, '/');
 }
 
 /**
- * Obtenir le chemin complet d'une vue.
- * 
- * @param string $view Le chemin relatif de la vue (ex: "home/index.php").
- * @return string Le chemin complet de la vue.
+ * Obtenir le chemin fichier complet d'une vue.
+ * Compatible Windows (\) et Linux (/)
  */
 function view_path(string $view): string {
-    return VIEW_PATH . '/' . ltrim($view, '/');
+    $view = str_replace(['/', '\\'], DS, $view);
+    return VIEW_PATH . DS . ltrim($view, DS);
 }
+
+/**
+ * Obtenir le chemin fichier complet d'un fichier src/
+ */
+function src_path(string $path): string {
+    $path = str_replace(['/', '\\'], DS, $path);
+    return SRC_PATH . DS . ltrim($path, DS);
+}
+
+/**
+ * Formate un montant en FCFA
+ * Exemple : formatFCFA(15000) → "15 000 FCFA"
+ */
+function formatFCFA(int $montant): string {
+    return number_format($montant, 0, ',', ' ') . ' FCFA';
+}
+
+// ===== VALIDATION DES VARIABLES OBLIGATOIRES =====
+$dotenv->required(['DB_HOST', 'DB_DATABASE', 'DB_USERNAME'])->notEmpty();

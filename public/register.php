@@ -1,4 +1,18 @@
 <?php
-session_start();
+/**
+ * Point d'entrée - Inscription
+ * 
+ * GET  → affiche le formulaire d'inscription
+ * POST → traite le formulaire d'inscription
+ */
 require_once dirname(__DIR__) . '/config/config.php';
-require_once dirname(__DIR__) . '/views/auth/register.php';
+
+use App\Controllers\AuthController;
+
+$controller = new AuthController();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $controller->register();
+} else {
+    $controller->showRegisterForm();
+}

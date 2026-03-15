@@ -1,6 +1,6 @@
 <?php
 
-namespace App\controllers;
+namespace App\Controllers;
 
 use App\Repositories\UserRepository;
 use App\Models\User;
@@ -9,106 +9,172 @@ use App\Utils\Session;
 
 /**
  * Classe AuthController - Contrôleur pour l'authentification utilisateur
+ * 
  * Gère:
  * - Affichage des formulaires de login et d'inscription
  * - Traitement des soumissions de formulaires
  * - Redirections après login/logout
  */
 class AuthController {
+
     private UserRepository $userRepository;
 
-    public function __construct(PDO $db) {
-        $this->userRepository = new UserRepository($db);
+    public function __construct() {
+        $this->userRepository = new UserRepository();
     }
 
+    // =========================================
+    // AFFICHAGE DES FORMULAIRES
+    // =========================================
+
+    /**
+     * Afficher le formulaire de connexion
+     */
     public function showLoginForm(): void {
-        // Si l'utilisateur est déjà connecté, le rediriger vers la page d'accueil
-        if(Auth::check()) {
-            $this->redirect('/');
+        if (Auth::check()) {
+            $this->redirect(url('index.php'));
         }
         require __DIR__ . '/../../views/auth/login.php';
     }
 
+    /**
+     * Afficher le formulaire d'inscription
+     */
     public function showRegisterForm(): void {
-         // Si l'utilisateur est déjà connecté, le rediriger vers la page d'accueil
-        if(Auth::check()) {
-            $this->redirect('/');
+        if (Auth::check()) {
+            $this->redirect(url('index.php'));
         }
         require __DIR__ . '/../../views/auth/register.php';
     }
 
-    // Traitement du formulaire de login
-    public function login(): void {
-        $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
+    // =========================================
+    // TRAITEMENT DES FORMULAIRES
+    // =========================================
 
-        // Validation basique
-        if(empty($email) || empty($password)) {
+    /**
+     * Traitement du formulaire de connexion
+     */
+    public function login(): void {
+        $email    = trim($_POST['email']    ?? '');
+        $password = $_POST['password']      ?? '';
+
+        // Validation : champs vides
+        if (empty($email) || empty($password)) {
             Session::flash('error', 'Veuillez remplir tous les champs.');
-            $this->redirect('/login');
+            $this->redirect(url('login.php'));
             return;
         }
 
-        if(Auth::attempt($email, $password)) {
-            Session::flash('success', 'Connexion réussie ! Bienvenue ' . Auth::user()->getFullName() . '!');
-            $this->redirect('/'); // Redirection vers la page d'accueil
+        // Validation : format email
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            Session::flash('error', 'Adresse email invalide.');
+            $this->redirect(url('login.php'));
+            return;
+        }
+
+        // Tentative de connexion
+        if (Auth::attempt($email, $password)) {
+            Session::flash('success', 'Bienvenue ' . Auth::user()->getFullName() . ' !');
+            $this->redirect(url('index.php'));
         } else {
             Session::flash('error', 'Email ou mot de passe incorrect.');
-            $this->redirect('/login');
+            $this->redirect(url('login.php'));
         }
     }
 
-    // Traitement du formulaire d'inscription
+    /**
+     * Traitement du formulaire d'inscription
+     */
     public function register(): void {
-        $email = trim($_POST['email'] ?? '');
-        $name = trim($_POST['name'] ?? '');
-        $firstname = trim($_POST['firstname'] ?? '');
-        $password = $_POST['password'] ?? '';
+        $nom      = trim($_POST['nom']      ?? '');
+        $prenom   = trim($_POST['prenom']   ?? '');
+        $email    = trim($_POST['email']    ?? '');
+        $password = $_POST['password']      ?? '';
+        $password2= $_POST['password2']     ?? '';
+        $tel      = trim($_POST['tel']      ?? '');
 
-        // Validation basique
-        if(empty($email) || empty($password) || empty($name) || empty($firstname)) {
-            Session::flash('error', 'Veuillez remplir tous les champs.');
-            $this->redirect('/register');
+        // Sauvegarder les anciens champs pour les réafficher en cas d'erreur
+        $_SESSION['old'] = compact('nom', 'prenom', 'email', 'tel');
+
+        // Validation : champs obligatoires
+        if (empty($nom) || empty($prenom) || empty($email) || empty($password)) {
+            Session::flash('error', 'Veuillez remplir tous les champs obligatoires.');
+            $this->redirect(url('register.php'));
+            return;
+        }
+
+        // Validation : format email
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            Session::flash('error', 'Adresse email invalide.');
+            $this->redirect(url('register.php'));
+            return;
+        }
+
+        // Validation : longueur mot de passe
+        if (strlen($password) < PASSWORD_MIN_LENGTH) {
+            Session::flash('error', 'Le mot de passe doit contenir au moins ' . PASSWORD_MIN_LENGTH . ' caractères.');
+            $this->redirect(url('register.php'));
+            return;
+        }
+
+        // Validation : confirmation mot de passe
+        if ($password !== $password2) {
+            Session::flash('error', 'Les mots de passe ne correspondent pas.');
+            $this->redirect(url('register.php'));
             return;
         }
 
         // Vérifier si l'email est déjà utilisé
-        if($this->userRepository->findByEmail($email)) {
-            Session::flash('error', 'Cet email est déjà utilisé.');
-            $this->redirect('/register');
+        if ($this->userRepository->emailExiste($email)) {
+            Session::flash('error', 'Cette adresse email est déjà utilisée.');
+            $this->redirect(url('register.php'));
             return;
         }
 
-        // Créer un nouvel utilisateur
+        // Créer le nouvel utilisateur
         $user = new User();
-        $user->setNom($name);
-        $user->setPrenom($firstname);
-        $user->setEmail($email);
-        $user->setPassword($password); // Le mot de passe sera hashé dans le setter
+        $user->setNom($nom)
+             ->setPrenom($prenom)
+             ->setEmail($email)
+             ->setPassword($password)
+             ->setTel(!empty($tel) ? $tel : null);
 
-        if($this->userRepository->save($user)) {
-            // Connection automatique après inscription (optionnel)
+        // Sauvegarder en BDD
+        if ($this->userRepository->save($user)) {
+            unset($_SESSION['old']);
             Auth::login($user);
-            Session::flash('success', 'Inscription réussie ! Bienvenue ' . Auth::user()->getFullName());
-            $this->redirect('/'); // Redirection vers la page d'accueil
+            Session::flash('success', 'Inscription réussie ! Bienvenue ' . $user->getFullName() . ' !');
+            $this->redirect(url('index.php'));
         } else {
-            Session::flash('error', 'Erreur lors de l\'inscription.');
-            $this->redirect('/register');
+            Session::flash('error', 'Une erreur est survenue lors de l\'inscription.');
+            $this->redirect(url('register.php'));
         }
     }
 
-    // Déconnexion de l'utilisateur
+    // =========================================
+    // DÉCONNEXION
+    // =========================================
+
+    /**
+     * Déconnecter l'utilisateur
+     */
     public function logout(): void {
         Auth::logout();
         Session::flash('success', 'Vous avez été déconnecté avec succès.');
-        $this->redirect('/login');
+        $this->redirect(url('login.php'));
     }
 
+    // =========================================
+    // UTILITAIRES
+    // =========================================
+
     /**
-     * Permet de faire la redirection vers une autre page
+     * Rediriger vers une URL
+     *
+     * @param string $path URL complète
      */
     private function redirect(string $path): void {
-        header("Location: " . $path);
+        header('Location: ' . $path);
         exit();
     }
 }

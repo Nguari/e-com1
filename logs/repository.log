@@ -1,0 +1,1 @@
+[2026-03-14 21:35:56] Erreur PDO dans App\Repositories\UserRepository : SQLSTATE[42S22]: Column not found: 1054 Unknown column 'telephone' in 'field list'

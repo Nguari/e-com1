@@ -1,4 +1,18 @@
 <?php
-session_start();
+/**
+ * Point d'entrée - Connexion
+ * 
+ * GET  → affiche le formulaire de connexion
+ * POST → traite le formulaire de connexion
+ */
 require_once dirname(__DIR__) . '/config/config.php';
-require_once dirname(__DIR__) . '/views/auth/login.php';
+
+use App\Controllers\AuthController;
+
+$controller = new AuthController();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $controller->login();
+} else {
+    $controller->showLoginForm();
+}
