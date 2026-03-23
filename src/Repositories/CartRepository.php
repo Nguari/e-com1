@@ -85,18 +85,19 @@ class CartRepository extends BaseRepository {
 
     /**
      * Ajouter ou mettre à jour un article dans le panier
+     * ✅ Deux paramètres distincts pour éviter Invalid parameter number
      */
     public function addOrUpdate(int $idUtilisateur, int $idProduit, int $quantite = 1): bool {
         try {
-            // Si le produit est déjà dans le panier → incrémenter
             $sql = "INSERT INTO {$this->tableName} (id_utilisateur, id_produit, quantite)
                     VALUES (:id_utilisateur, :id_produit, :quantite)
-                    ON DUPLICATE KEY UPDATE quantite = quantite + :quantite";
+                    ON DUPLICATE KEY UPDATE quantite = quantite + :quantite_update";
 
             return $this->executeCommand($sql, [
-                ':id_utilisateur' => $idUtilisateur,
-                ':id_produit'     => $idProduit,
-                ':quantite'       => $quantite,
+                ':id_utilisateur'  => $idUtilisateur,
+                ':id_produit'      => $idProduit,
+                ':quantite'        => $quantite,
+                ':quantite_update' => $quantite,
             ]);
 
         } catch (\PDOException $e) {

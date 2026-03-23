@@ -1,81 +1,81 @@
 <?php
 require_once dirname(__DIR__) . '/config/config.php';
 
+use App\Config\Database;
+use App\Repositories\ProduitRepository;
+
 $pageTitle   = 'Boutique - NGAARY SHOP';
 $currentPage = 'boutique.php';
 
 include __DIR__ . '/../views/layouts/header.php';
 
-// Produits statiques
-$tousLesProduits = [
-    ['nom' => 'Chaise en Chêne',       'prix' => 30000, 'prix_ancien' => 37500, 'badge' => '-20%',    'badge_color' => 'danger',  'categorie' => 'Mobilier',    'note' => 4],
-    ['nom' => 'Table Basse Bambou',    'prix' => 45000, 'prix_ancien' => null,  'badge' => 'Nouveau', 'badge_color' => 'success', 'categorie' => 'Mobilier',    'note' => 5],
-    ['nom' => 'Lampe en Rotin',        'prix' => 18500, 'prix_ancien' => 20500, 'badge' => '-10%',    'badge_color' => 'danger',  'categorie' => 'Décoration',  'note' => 4],
-    ['nom' => 'Panier Tressé',         'prix' => 12000, 'prix_ancien' => null,  'badge' => null,      'badge_color' => null,      'categorie' => 'Accessoires', 'note' => 5],
-    ['nom' => 'Miroir Bois Flotté',    'prix' => 28000, 'prix_ancien' => null,  'badge' => 'Nouveau', 'badge_color' => 'success', 'categorie' => 'Décoration',  'note' => 4],
-    ['nom' => 'Coussin Wax Coloré',    'prix' => 8500,  'prix_ancien' => null,  'badge' => null,      'badge_color' => null,      'categorie' => 'Textile',     'note' => 5],
-    ['nom' => 'Vase Terracotta',       'prix' => 15000, 'prix_ancien' => 18000, 'badge' => '-17%',    'badge_color' => 'danger',  'categorie' => 'Décoration',  'note' => 4],
-    ['nom' => 'Plateau Osier Naturel', 'prix' => 9500,  'prix_ancien' => null,  'badge' => null,      'badge_color' => null,      'categorie' => 'Accessoires', 'note' => 3],
-    ['nom' => 'Étagère Bambou',        'prix' => 35000, 'prix_ancien' => null,  'badge' => 'Nouveau', 'badge_color' => 'success', 'categorie' => 'Mobilier',    'note' => 5],
-    ['nom' => 'Tapis Wax Géométrique', 'prix' => 22000, 'prix_ancien' => 25000, 'badge' => '-12%',    'badge_color' => 'danger',  'categorie' => 'Textile',     'note' => 4],
-    ['nom' => 'Bougeoir Terracotta',   'prix' => 7500,  'prix_ancien' => null,  'badge' => null,      'badge_color' => null,      'categorie' => 'Décoration',  'note' => 4],
-    ['nom' => 'Sac Raphia Naturel',    'prix' => 14000, 'prix_ancien' => null,  'badge' => 'Nouveau', 'badge_color' => 'success', 'categorie' => 'Accessoires', 'note' => 5],
-];
+// Chargement depuis la BDD
+$db          = Database::getInstance()->getConnection();
+$produitRepo = new ProduitRepository($db);
 
-$categories = ['Tous', 'Mobilier', 'Décoration', 'Textile', 'Accessoires'];
-
-// Filtre catégorie
 $categorieActive = $_GET['categorie'] ?? 'Tous';
+
+$tousLesProduits = $produitRepo->findAllWithCategorie();
+$categories      = $produitRepo->getCategories();
+
 $produits = $categorieActive === 'Tous'
     ? $tousLesProduits
-    : array_filter($tousLesProduits, fn($p) => $p['categorie'] === $categorieActive);
+    : $produitRepo->findByCategorie($categorieActive);
+
+// Flash messages
+$flashSuccess = $_SESSION['flash_success'] ?? null;
+$flashError   = $_SESSION['flash_error']   ?? null;
+unset($_SESSION['flash_success'], $_SESSION['flash_error']);
+
+/**
+ * Calcule le badge promo dynamiquement
+ */
+function getBadge(array $produit): ?array {
+    if ($produit['prix_promo']) {
+        $pct = round((1 - $produit['prix_promo'] / $produit['prix']) * 100);
+        return ['label' => "-{$pct}%", 'color' => 'danger'];
+    }
+    // Produit ajouté il y a moins de 7 jours → "Nouveau"
+    if (!empty($produit['date_ajout'])) {
+        $diff = (new DateTime())->diff(new DateTime($produit['date_ajout']))->days;
+        if ($diff <= 7) {
+            return ['label' => 'Nouveau', 'color' => 'success'];
+        }
+    }
+    return null;
+}
 ?>
 
 <style>
     .font-serif { font-family: 'Playfair Display', serif; }
-
-    /* HERO */
     .boutique-hero { background: linear-gradient(135deg, #0d2818 0%, #1a6b35 100%); padding: 60px 0; }
-
-    /* FILTRES */
-    .filter-btn {
-        border: 1.5px solid #e2e8f0;
-        border-radius: 50px;
-        padding: 8px 20px;
-        background: white;
-        color: #0d2818;
-        font-size: 0.85rem;
-        font-weight: 500;
-        cursor: pointer;
-        text-decoration: none;
-        transition: all 0.2s;
-        display: inline-block;
-    }
+    .filter-btn { border: 1.5px solid #e2e8f0; border-radius: 50px; padding: 8px 20px; background: white; color: #0d2818; font-size: 0.85rem; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; display: inline-block; }
     .filter-btn:hover { border-color: #16a34a; color: #16a34a; background: #f0faf3; }
     .filter-btn.active { background: #16a34a; border-color: #16a34a; color: white; font-weight: 600; }
-
-    /* PRODUITS */
     .product-card { border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.07); transition: transform 0.3s, box-shadow 0.3s; }
     .product-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(0,0,0,0.12); }
-    .product-img { background-color: #e8f5ee; padding: 30px; position: relative; min-height: 180px; display: flex; align-items: center; justify-content: center; }
-    .product-img i { font-size: 4rem; color: #a7c9b3; transition: transform 0.3s; }
-    .product-card:hover .product-img i { transform: scale(1.1); }
+    .product-img { background-color: #e8f5ee; position: relative; height: 200px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+    .product-card:hover .product-img img { transform: scale(1.05); }
+    .product-img .placeholder { font-size: 4rem; color: #a7c9b3; }
     .btn-wishlist { background: white; border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: #0d2818; transition: color 0.2s, transform 0.2s; cursor: pointer; }
     .btn-wishlist:hover { color: #e11d48; transform: scale(1.2); }
-    .btn-cart { background-color: #16a34a; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; width: 100%; transition: background-color 0.2s, transform 0.2s; }
-    .btn-cart:hover { background-color: #15803d; color: white; transform: translateY(-1px); }
+    .btn-cart { background-color: #16a34a; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; width: 100%; transition: background-color 0.2s; cursor: pointer; }
+    .btn-cart:hover { background-color: #15803d; color: white; }
     .section-divider { height: 3px; width: 50px; background-color: #16a34a; margin-top: 6px; }
-
-    /* ANIMATIONS */
     .reveal { opacity: 0; transform: translateY(25px); transition: opacity 0.5s ease, transform 0.5s ease; }
     .reveal.visible { opacity: 1; transform: translateY(0); }
     .reveal-delay-1 { transition-delay: 0.05s; }
     .reveal-delay-2 { transition-delay: 0.1s; }
     .reveal-delay-3 { transition-delay: 0.15s; }
     .reveal-delay-4 { transition-delay: 0.2s; }
+    /* TOAST */
+    .toast-ngaary { position: fixed; bottom: 30px; right: 30px; z-index: 9999; background: #0d2818; color: white; border-radius: 14px; padding: 16px 24px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.2); animation: slideInToast 0.4s ease; min-width: 280px; }
+    .toast-ngaary.error { background: #dc2626; }
+    @keyframes slideInToast { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
-<!-- ====== HERO ====== -->
+<!-- HERO -->
 <section class="boutique-hero text-white">
     <div class="container text-center">
         <span class="text-success text-uppercase small fw-bold" style="letter-spacing: 3px;">✦ Notre sélection</span>
@@ -87,27 +87,28 @@ $produits = $categorieActive === 'Tous'
     </div>
 </section>
 
-<!-- ====== FILTRES CATÉGORIES ====== -->
+<!-- FILTRES -->
 <section class="py-4 bg-white border-bottom sticky-top" style="top: 56px; z-index: 100;">
     <div class="container">
         <div class="d-flex gap-2 flex-wrap justify-content-center">
-            <?php foreach ($categories as $cat) :
-                $nb  = $cat === 'Tous'
-                    ? count($tousLesProduits)
-                    : count(array_filter($tousLesProduits, fn($p) => $p['categorie'] === $cat));
-                $url = $cat === 'Tous'
-                    ? url('boutique.php')
-                    : url('boutique.php') . '?categorie=' . urlencode($cat);
-            ?>
-                <a href="<?= $url ?>" class="filter-btn <?= $categorieActive === $cat ? 'active' : '' ?>">
-                    <?= $cat ?> <span class="ms-1 opacity-75">(<?= $nb ?>)</span>
-                </a>
+            <!-- Tous -->
+            <a href="<?= url('boutique.php') ?>"
+               class="filter-btn <?= $categorieActive === 'Tous' ? 'active' : '' ?>">
+                Tous <span class="ms-1 opacity-75">(<?= count($tousLesProduits) ?>)</span>
+            </a>
+            <!-- Catégories depuis BDD -->
+            <?php foreach ($categories as $cat) : ?>
+            <a href="<?= url('boutique.php') . '?categorie=' . urlencode($cat['nom']) ?>"
+               class="filter-btn <?= $categorieActive === $cat['nom'] ? 'active' : '' ?>">
+                <?= htmlspecialchars($cat['nom']) ?>
+                <span class="ms-1 opacity-75">(<?= $cat['nb_produits'] ?>)</span>
+            </a>
             <?php endforeach; ?>
         </div>
     </div>
 </section>
 
-<!-- ====== GRILLE PRODUITS ====== -->
+<!-- GRILLE PRODUITS -->
 <section class="py-5">
     <div class="container">
 
@@ -132,38 +133,82 @@ $produits = $categorieActive === 'Tous'
             </div>
         <?php else : ?>
             <div class="row g-4">
-                <?php foreach (array_values($produits) as $idx => $produit) : ?>
+                <?php foreach (array_values($produits) as $idx => $produit) :
+                    $badge     = getBadge($produit);
+                    $prixAffiche = $produit['prix_promo'] ?? $produit['prix'];
+                ?>
                 <div class="col-6 col-lg-3 reveal reveal-delay-<?= ($idx % 4) + 1 ?>">
                     <div class="card product-card h-100">
-                        <div class="product-img">
-                            <?php if ($produit['badge']) : ?>
-                                <span class="badge bg-<?= $produit['badge_color'] ?> position-absolute top-0 start-0 m-2">
-                                    <?= htmlspecialchars($produit['badge']) ?>
-                                </span>
-                            <?php endif; ?>
-                            <button class="btn-wishlist position-absolute top-0 end-0 m-2">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                            <i class="bi bi-image"></i>
-                        </div>
-                        <div class="card-body d-flex flex-column px-3 py-3">
-                            <small class="text-muted mb-1" style="font-size: 0.75rem;"><?= $produit['categorie'] ?></small>
-                            <h5 class="card-title h6 mb-1 fw-semibold"><?= htmlspecialchars($produit['nom']) ?></h5>
-                            <div class="mb-2">
-                                <?php for ($j = 1; $j <= 5; $j++) : ?>
-                                    <i class="bi bi-star<?= $j <= $produit['note'] ? '-fill text-warning' : ' text-muted' ?>" style="font-size: 0.7rem;"></i>
-                                <?php endfor; ?>
+
+                        <!-- IMAGE -->
+                        <a href="<?= url('produit.php?id=' . $produit['id_produit']) ?>" class="text-decoration-none">
+                            <div class="product-img">
+                                <?php if ($badge) : ?>
+                                    <span class="badge bg-<?= $badge['color'] ?> position-absolute top-0 start-0 m-2">
+                                        <?= $badge['label'] ?>
+                                    </span>
+                                <?php endif; ?>
+                                <button type="button" class="btn-wishlist position-absolute top-0 end-0 m-2"
+                                        onclick="event.preventDefault()">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                                <?php if (!empty($produit['image'])) : ?>
+                                    <img src="<?= htmlspecialchars($produit['image']) ?>"
+                                         alt="<?= htmlspecialchars($produit['nom']) ?>">
+                                <?php else : ?>
+                                    <i class="bi bi-image placeholder"></i>
+                                <?php endif; ?>
                             </div>
+                        </a>
+
+                        <!-- INFOS -->
+                        <div class="card-body d-flex flex-column px-3 py-3">
+                            <small class="text-muted mb-1" style="font-size: 0.75rem;">
+                                <?= htmlspecialchars($produit['categorie_nom'] ?? '') ?>
+                            </small>
+                            <h5 class="card-title h6 mb-1 fw-semibold">
+                                <a href="<?= url('produit.php?id=' . $produit['id_produit']) ?>"
+                                   class="text-dark text-decoration-none">
+                                    <?= htmlspecialchars($produit['nom']) ?>
+                                </a>
+                            </h5>
+
+                            <!-- STOCK -->
+                            <?php if ($produit['stock'] <= 5 && $produit['stock'] > 0) : ?>
+                            <small class="text-warning mb-1">
+                                <i class="bi bi-exclamation-circle me-1"></i>Plus que <?= $produit['stock'] ?> en stock
+                            </small>
+                            <?php elseif ($produit['stock'] == 0) : ?>
+                            <small class="text-danger mb-1">
+                                <i class="bi bi-x-circle me-1"></i>Rupture de stock
+                            </small>
+                            <?php endif; ?>
+
                             <div class="mt-auto">
                                 <div class="d-flex align-items-center gap-2 mb-2">
-                                    <span class="text-success fw-bold"><?= number_format($produit['prix'], 0, ',', ' ') ?> FCFA</span>
-                                    <?php if ($produit['prix_ancien']) : ?>
-                                        <span class="text-muted text-decoration-line-through small"><?= number_format($produit['prix_ancien'], 0, ',', ' ') ?> FCFA</span>
+                                    <span class="text-success fw-bold"><?= formatFCFA((int)$prixAffiche) ?></span>
+                                    <?php if ($produit['prix_promo']) : ?>
+                                        <span class="text-muted text-decoration-line-through small">
+                                            <?= formatFCFA((int)$produit['prix']) ?>
+                                        </span>
                                     <?php endif; ?>
                                 </div>
-                                <button class="btn-cart">
-                                    <i class="bi bi-cart-plus me-1"></i>Ajouter
+
+                                <?php if ($produit['stock'] > 0) : ?>
+                                <form action="<?= url('cart_add.php') ?>" method="POST">
+                                    <input type="hidden" name="csrf_token"  value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+                                    <input type="hidden" name="id_produit"  value="<?= $produit['id_produit'] ?>">
+                                    <input type="hidden" name="quantite"    value="1">
+                                    <input type="hidden" name="retour"      value="boutique.php">
+                                    <button type="submit" class="btn-cart">
+                                        <i class="bi bi-cart-plus me-1"></i>Ajouter
+                                    </button>
+                                </form>
+                                <?php else : ?>
+                                <button class="btn-cart" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                    Indisponible
                                 </button>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -175,15 +220,43 @@ $produits = $categorieActive === 'Tous'
     </div>
 </section>
 
-<!-- SCROLL REVEAL -->
+<!-- TOAST -->
+<?php if ($flashSuccess) : ?>
+<div class="toast-ngaary" id="toast-success">
+    <i class="bi bi-check-circle-fill text-success fs-5"></i>
+    <div>
+        <div class="fw-semibold small"><?= htmlspecialchars($flashSuccess) ?></div>
+        <a href="<?= url('cart.php') ?>" class="text-success small text-decoration-none">Voir le panier →</a>
+    </div>
+    <button onclick="document.getElementById('toast-success').remove()"
+            style="background:none; border:none; color:white; margin-left:auto; cursor:pointer;">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+<?php endif; ?>
+
+<?php if ($flashError) : ?>
+<div class="toast-ngaary error" id="toast-error">
+    <i class="bi bi-exclamation-circle-fill fs-5"></i>
+    <div class="fw-semibold small"><?= htmlspecialchars($flashError) ?></div>
+    <button onclick="document.getElementById('toast-error').remove()"
+            style="background:none; border:none; color:white; margin-left:auto; cursor:pointer;">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+<?php endif; ?>
+
 <script>
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) entry.target.classList.add('visible');
         });
     }, { threshold: 0.1 });
-
     document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    setTimeout(() => {
+        document.getElementById('toast-success')?.remove();
+        document.getElementById('toast-error')?.remove();
+    }, 4000);
 </script>
 
 <?php include __DIR__ . '/../views/layouts/footer.php'; ?>

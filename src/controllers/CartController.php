@@ -4,34 +4,29 @@ namespace App\Controllers;
 
 use PDO;
 use App\Repositories\CartRepository;
+use App\Utils\Auth;
 
 /**
  * CartController
- * 
- * Gère toutes les actions du panier :
- * - Affichage
- * - Ajout / Suppression / Modification
- * - Vidage
+ * Gère toutes les actions du panier
  */
 class CartController {
 
     private CartRepository $cartRepository;
-    private int $idUtilisateur;
 
     public function __construct(PDO $db) {
         $this->cartRepository = new CartRepository($db);
-        $this->idUtilisateur  = (int)($_SESSION['user_id'] ?? 0);
     }
 
     // =========================================
     // AFFICHER LE PANIER
     // =========================================
     public function index(): void {
-        if (!$this->isConnected()) {
-            $this->redirect('/login');
+        if (!Auth::check()) {
+            $this->redirect(url('login.php'));
         }
 
-        $cart = $this->cartRepository->getCartByUser($this->idUtilisateur);
+        $cart = $this->cartRepository->getCartByUser((int)Auth::id());
         include view_path('cart/index.php');
     }
 
@@ -39,9 +34,9 @@ class CartController {
     // AJOUTER UN ARTICLE
     // =========================================
     public function add(): void {
-        if (!$this->isConnected()) {
+        if (!Auth::check()) {
             $_SESSION['flash_error'] = 'Connectez-vous pour ajouter au panier.';
-            $this->redirect('/login');
+            $this->redirect(url('login.php'));
         }
 
         $idProduit = (int)($_POST['id_produit'] ?? 0);
@@ -49,12 +44,12 @@ class CartController {
 
         if ($idProduit <= 0) {
             $_SESSION['flash_error'] = 'Produit invalide.';
-            $this->redirect('/boutique');
+            $this->redirect(url('boutique.php')); // ✅ minuscule
             return;
         }
 
         $success = $this->cartRepository->addOrUpdate(
-            $this->idUtilisateur,
+            (int)Auth::id(),
             $idProduit,
             $quantite
         );
@@ -65,41 +60,41 @@ class CartController {
             $_SESSION['flash_error'] = 'Erreur lors de l\'ajout au panier.';
         }
 
-        $this->redirect('/cart');
+        $this->redirect(url('cart.php')); // ✅ minuscule
     }
 
     // =========================================
     // MODIFIER LA QUANTITÉ
     // =========================================
     public function update(): void {
-        if (!$this->isConnected()) {
-            $this->redirect('/login');
+        if (!Auth::check()) {
+            $this->redirect(url('login.php'));
         }
 
         $idProduit = (int)($_POST['id_produit'] ?? 0);
         $quantite  = (int)($_POST['quantite']   ?? 0);
 
         $this->cartRepository->updateQuantite(
-            $this->idUtilisateur,
+            (int)Auth::id(),
             $idProduit,
             $quantite
         );
 
-        $this->redirect('/cart');
+        $this->redirect(url('cart.php')); // ✅ minuscule
     }
 
     // =========================================
     // SUPPRIMER UN ARTICLE
     // =========================================
     public function remove(): void {
-        if (!$this->isConnected()) {
-            $this->redirect('/login');
+        if (!Auth::check()) {
+            $this->redirect(url('login.php'));
         }
 
         $idProduit = (int)($_POST['id_produit'] ?? 0);
 
         $success = $this->cartRepository->removeItem(
-            $this->idUtilisateur,
+            (int)Auth::id(),
             $idProduit
         );
 
@@ -107,31 +102,27 @@ class CartController {
             $_SESSION['flash_success'] = 'Article retiré du panier.';
         }
 
-        $this->redirect('/cart');
+        $this->redirect(url('cart.php')); // ✅ minuscule
     }
 
     // =========================================
     // VIDER LE PANIER
     // =========================================
     public function clear(): void {
-        if (!$this->isConnected()) {
-            $this->redirect('/login');
+        if (!Auth::check()) {
+            $this->redirect(url('login.php'));
         }
 
-        $this->cartRepository->clearCart($this->idUtilisateur);
+        $this->cartRepository->clearCart((int)Auth::id());
         $_SESSION['flash_success'] = 'Votre panier a été vidé.';
-        $this->redirect('/cart');
+        $this->redirect(url('cart.php')); // ✅ minuscule
     }
 
     // =========================================
-    // MÉTHODES PRIVÉES
+    // MÉTHODE PRIVÉE
     // =========================================
-    private function isConnected(): bool {
-        return isset($_SESSION['user_id']) && $_SESSION['user_id'] > 0;
-    }
-
-    private function redirect(string $path): void {
-        header('Location: ' . url($path));
+    private function redirect(string $url): void {
+        header('Location: ' . $url);
         exit();
     }
 }

@@ -32,7 +32,12 @@ class AuthController {
      */
     public function showLoginForm(): void {
         if (Auth::check()) {
-            $this->redirect(url('index.php'));
+            // Redirection selon le rôle si déjà connecté
+            if (Auth::isAdmin()) {
+                $this->redirect(url('admin/index.php'));
+            } else {
+                $this->redirect(url('index.php'));
+            }
         }
         require __DIR__ . '/../../views/auth/login.php';
     }
@@ -75,7 +80,12 @@ class AuthController {
         // Tentative de connexion
         if (Auth::attempt($email, $password)) {
             Session::flash('success', 'Bienvenue ' . Auth::user()->getFullName() . ' !');
-            $this->redirect(url('index.php'));
+            // ✅ Redirection selon le rôle
+            if (Auth::isAdmin()) {
+                $this->redirect(url('admin/index.php'));
+            } else {
+                $this->redirect(url('index.php'));
+            }
         } else {
             Session::flash('error', 'Email ou mot de passe incorrect.');
             $this->redirect(url('login.php'));

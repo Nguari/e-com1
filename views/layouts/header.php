@@ -45,6 +45,9 @@
                         <?= htmlspecialchars(\App\Utils\Auth::user()->getPrenom()) ?>
                     </strong>
                 </span>
+                <a href="<?= url('mes_commandes.php') ?>" class="text-success text-decoration-none d-none d-md-inline" title="Mes commandes">
+                    <i class="bi bi-receipt fs-5"></i>
+                </a>
                 <a href="<?= url('logout.php') ?>" class="text-danger text-decoration-none" title="Se déconnecter">
                     <i class="fas fa-user-circle fs-3"></i>
                     <span class="ms-1 small fw-semibold d-none d-md-inline">Déconnexion</span>
@@ -85,14 +88,28 @@
 
         <!-- PANIER -->
         <div class="d-flex align-items-center gap-3">
-            <button class="btn border-0 position-relative p-0 text-dark">
-                <i class="bi bi-bag-heart fs-4"></i>
-            </button>
-            <a href="<?= url('Cart.php') ?>" class="btn border-0 position-relative p-0 text-dark">
+            <a href="<?= url('cart.php') ?>" class="btn border-0 position-relative p-0 text-dark">
                 <i class="bi bi-cart3 fs-4"></i>
+                <?php
+                $cartCount = 0;
+                if (\App\Utils\Auth::check()) {
+                    try {
+                        $cartDb   = \App\Config\Database::getInstance()->getConnection();
+                        $cartStmt = $cartDb->prepare(
+                            "SELECT COALESCE(SUM(quantite), 0) FROM panier WHERE id_utilisateur = :id"
+                        );
+                        $cartStmt->execute([':id' => \App\Utils\Auth::id()]);
+                        $cartCount = (int)$cartStmt->fetchColumn();
+                    } catch (\Exception $e) {
+                        $cartCount = 0;
+                    }
+                }
+                ?>
+                <?php if ($cartCount > 0) : ?>
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="font-size: 0.6rem;">
-                    <?= isset($_SESSION['cart']) ? count($_SESSION['cart']) : 0 ?>
+                    <?= $cartCount ?>
                 </span>
+                <?php endif; ?>
             </a>
         </div>
     </div>

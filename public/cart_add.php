@@ -3,18 +3,15 @@ require_once dirname(__DIR__) . '/config/config.php';
 
 use App\Config\Database;
 use App\Repositories\CartRepository;
+use App\Utils\Auth;
 
-// =========================================
 // 1. VÉRIFICATION MÉTHODE POST
-// =========================================
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ' . url('boutique.php'));
     exit();
 }
 
-// =========================================
 // 2. VÉRIFICATION CSRF
-// =========================================
 if (
     !isset($_POST['csrf_token'], $_SESSION['csrf_token']) ||
     !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
@@ -24,20 +21,16 @@ if (
     exit();
 }
 
-// =========================================
 // 3. VÉRIFICATION CONNEXION
-// =========================================
-if (!isset($_SESSION['user_id']) || (int)$_SESSION['user_id'] <= 0) {
+if (!Auth::check()) {
     $_SESSION['flash_error'] = "Connectez-vous pour ajouter au panier.";
     header('Location: ' . url('login.php'));
     exit();
 }
 
-// =========================================
-// 4. RÉCUPÉRATION ET VALIDATION DES DONNÉES
-// =========================================
+// 4. RÉCUPÉRATION DES DONNÉES
 $idProduit     = (int)($_POST['id_produit'] ?? 0);
-$idUtilisateur = (int)$_SESSION['id'];
+$idUtilisateur = (int)Auth::id();
 $quantite      = max(1, (int)($_POST['quantite'] ?? 1));
 
 if ($idProduit <= 0) {
@@ -46,11 +39,9 @@ if ($idProduit <= 0) {
     exit();
 }
 
-// =========================================
 // 5. AJOUT EN BASE DE DONNÉES
-// =========================================
 try {
-    $db = Database::getInstance()->getConnection();
+    $db             = Database::getInstance()->getConnection();
     $cartRepository = new CartRepository($db);
 
     $success = $cartRepository->addOrUpdate($idUtilisateur, $idProduit, $quantite);
@@ -66,8 +57,7 @@ try {
     $_SESSION['flash_error'] = "Erreur lors de l'ajout au panier.";
 }
 
-// =========================================
-// 6. REDIRECTION VERS LE PANIER
-// =========================================
-header('Location: ' . url('cart.php'));
+// 6. REDIRECTION VERS LA PAGE PRÉCÉDENTE
+$retour = $_POST['retour'] ?? 'boutique.php';
+header('Location: ' . url($retour));
 exit();

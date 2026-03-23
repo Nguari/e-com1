@@ -17,7 +17,7 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0 small">
                 <li class="breadcrumb-item">
-                    <a href="<?= url('/') ?>" class="text-success text-decoration-none">Accueil</a>
+                    <a href="<?= url('index.php') ?>" class="text-success text-decoration-none">Accueil</a>
                 </li>
                 <li class="breadcrumb-item active">Mon Panier</li>
             </ol>
@@ -57,7 +57,7 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
                 <i class="bi bi-cart-x" style="font-size: 5rem; color: #d1d5db;"></i>
                 <h4 class="fw-bold mt-4 mb-2">Votre panier est vide</h4>
                 <p class="text-muted mb-4">Découvrez nos produits et commencez vos achats !</p>
-                <a href="<?= url('/boutique.php') ?>" class="btn btn-success rounded-3 px-4 py-2 fw-semibold">
+                <a href="<?= url('/Boutique.php') ?>" class="btn btn-success rounded-3 px-4 py-2 fw-semibold">
                     <i class="bi bi-bag me-2"></i>Voir la boutique
                 </a>
             </div>
@@ -73,7 +73,7 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
                         <!-- EN-TÊTE -->
                         <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                             <span class="fw-semibold">Articles</span>
-                            <form action="<?= url('/cart/clear') ?>" method="POST">
+                            <form action="<?= url('cart_clear.php') ?>" method="POST">
                                 <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                                 <button type="submit"
                                         class="btn btn-link text-danger text-decoration-none small p-0"
@@ -111,7 +111,7 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
                                 </div>
 
                                 <!-- QUANTITÉ -->
-                                <form action="<?= url('/cart/update') ?>" method="POST"
+                                <form action="<?= url('cart_update.php') ?>" method="POST"
                                       class="d-flex align-items-center gap-2">
                                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                                     <input type="hidden" name="id_produit" value="<?= $item->getIdProduit() ?>">
@@ -144,7 +144,7 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
                                 </div>
 
                                 <!-- SUPPRIMER -->
-                                <form action="<?= url('/cart/remove') ?>" method="POST">
+                                <form action="<?= url('cart_remove.php') ?>" method="POST">
                                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                                     <input type="hidden" name="id_produit" value="<?= $item->getIdProduit() ?>">
                                     <button type="submit" class="btn btn-link text-danger p-0" title="Supprimer">
@@ -158,7 +158,7 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
                     </div>
 
-                    <a href="<?= url('/boutique') ?>" class="btn btn-outline-success rounded-3 mt-3">
+                    <a href="<?= url('/Boutique.php') ?>" class="btn btn-outline-success rounded-3 mt-3">
                         <i class="bi bi-arrow-left me-2"></i>Continuer les achats
                     </a>
                 </div>
@@ -215,7 +215,7 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
                                 </span>
                             </div>
 
-                            <a href="<?= url('/checkout') ?>"
+                            <a href="<?= url('checkout.php') ?>"
                                class="btn btn-success w-100 py-3 fw-bold rounded-3 fs-6">
                                 <i class="bi bi-lock-fill me-2"></i>Commander
                             </a>
