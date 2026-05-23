@@ -77,6 +77,30 @@ function src_path(string $path): string {
 }
 
 /**
+ * Récupère un paramètre depuis la table settings
+ * 
+ * @param string $key
+ * @param mixed $default
+ * @return mixed
+ */
+function setting(string $key, $default = null) {
+    static $settings = null;
+    if ($settings === null) {
+        try {
+            $db = \App\Config\Database::getInstance()->getConnection();
+            $stmt = $db->query("SELECT setting_key, setting_value FROM settings");
+            $settings = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $settings[$row['setting_key']] = $row['setting_value'];
+            }
+        } catch (\Exception $e) {
+            return $default;
+        }
+    }
+    return $settings[$key] ?? $default;
+}
+
+/**
  * Formate un montant en FCFA
  * Exemple : formatFCFA(15000) → "15 000 FCFA"
  */
@@ -86,3 +110,5 @@ function formatFCFA(int $montant): string {
 
 // ===== VALIDATION DES VARIABLES OBLIGATOIRES =====
 $dotenv->required(['DB_HOST', 'DB_DATABASE', 'DB_USERNAME'])->notEmpty();
+// Inclure la configuration des paiements
+require_once __DIR__ . '/payment.php';

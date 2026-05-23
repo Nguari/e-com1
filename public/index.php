@@ -1,22 +1,30 @@
 <?php
+/**
+ * Page d'accueil - NGAARY SHOP
+ * 
+ * @var array<int, array> $produits Liste des produits
+ * @var array<int, array> $categories Liste des catégories
+ * @var int $tousLesProduits Nombre total de produits
+ * @var array<int, array> $avis Liste des avis
+ * @var string|null $flashSuccess Message de succès
+ * @var string|null $flashError Message d'erreur
+ * @var array<int, int> $favorisIds IDs des produits favoris
+ */
+
 require_once dirname(__DIR__) . '/config/config.php';
 
 use App\Config\Database;
 use App\Repositories\ProduitRepository;
 
-$pageTitle   = 'Accueil - NGAARY SHOP';
-$currentPage = 'index.php';
-
-include __DIR__ . '/../views/layouts/header.php';
-
 // Chargement depuis la BDD
-$db          = Database::getInstance()->getConnection();
+$db = Database::getInstance()->getConnection();
 $produitRepo = new ProduitRepository($db);
 
-$produits   = $produitRepo->getMeilleuresVentes(8);
+$produits = $produitRepo->getMeilleuresVentes(8);
 $categories = $produitRepo->getCategories();
+$tousLesProduits = $produitRepo->getAllProduitsCount();
 
-// Avis statiques (à remplacer par BDD si besoin)
+// Avis statiques
 $avis = [
     ['nom' => 'Aminata D.', 'note' => 5, 'texte' => 'Qualité irréprochable, livraison rapide à Dakar. Je recommande !'],
     ['nom' => 'Moussa K.',  'note' => 5, 'texte' => 'Le panier tressé est magnifique, exactement comme sur la photo.'],
@@ -28,11 +36,77 @@ $flashSuccess = $_SESSION['flash_success'] ?? null;
 $flashError   = $_SESSION['flash_error']   ?? null;
 unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
+// Charger les IDs des favoris
+$favorisIds = [];
+if (\App\Utils\Auth::check()) {
+    try {
+        $stmtFav = $db->prepare("SELECT id_produit FROM favoris WHERE id_utilisateur = :id");
+        $stmtFav->execute([':id' => \App\Utils\Auth::id()]);
+        $favorisIds = $stmtFav->fetchAll(\PDO::FETCH_COLUMN);
+    } catch (\Exception $e) {}
+}
+
+// Générer token CSRF
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 /**
- * Calcule le badge promo dynamiquement
+ * Récupère la première image d'un produit (pour l'affichage)
  */
+function getProductImage($produit) {
+    // Vérifier d'abord si le champ 'images' existe et n'est pas vide
+    if (!empty($produit['images'])) {
+        $images = json_decode($produit['images'], true);
+        if (is_array($images) && !empty($images)) {
+            $firstImage = $images[0];
+            return url('assets/img/produits/' . $firstImage);
+        }
+    }
+    
+    // Fallback sur l'ancien champ 'image'
+    if (!empty($produit['image'])) {
+        return url('assets/img/produits/' . $produit['image']);
+    }
+    
+    // Image par défaut
+    return url('assets/img/produits/default.jpg');
+}
+
+/**
+ * Récupère toutes les images d'un produit (pour la galerie)
+ */
+function getProductImages($produit) {
+    $images = [];
+    
+    // Vérifier le champ 'images' (JSON)
+    if (!empty($produit['images'])) {
+        $images = json_decode($produit['images'], true);
+        if (is_array($images)) {
+            $images = array_map(function($img) {
+                return url('assets/img/produits/' . $img);
+            }, $images);
+        } else {
+            $images = [];
+        }
+    }
+    
+    // Fallback sur l'ancien champ 'image'
+    if (empty($images) && !empty($produit['image'])) {
+        $images[] = url('assets/img/produits/' . $produit['image']);
+    }
+    
+    // Image par défaut si aucune image
+    if (empty($images)) {
+        $images[] = url('assets/img/produits/default.jpg');
+    }
+    
+    return $images;
+}
+
+// Badge promo
 function getBadgeIndex(array $produit): ?array {
-    if ($produit['prix_promo']) {
+    if (!empty($produit['prix_promo']) && $produit['prix_promo'] < $produit['prix']) {
         $pct = round((1 - $produit['prix_promo'] / $produit['prix']) * 100);
         return ['label' => "-{$pct}%", 'color' => 'danger'];
     }
@@ -42,6 +116,11 @@ function getBadgeIndex(array $produit): ?array {
     }
     return null;
 }
+
+$pageTitle = 'Accueil - NGAARY SHOP';
+$currentPage = 'index.php';
+
+ob_start();
 ?>
 
 <style>
@@ -97,10 +176,22 @@ function getBadgeIndex(array $produit): ?array {
     .avis-card:hover { transform:translateY(-5px); box-shadow:0 12px 30px rgba(0,0,0,.1); }
     .avis-avatar { width:36px; height:36px; border-radius:50%; background-color:#16a34a; color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.9rem; }
 
-    /* TOAST */
     .toast-ngaary { position:fixed; bottom:30px; right:30px; z-index:9999; background:#0d2818; color:white; border-radius:14px; padding:16px 24px; display:flex; align-items:center; gap:12px; box-shadow:0 8px 30px rgba(0,0,0,.2); animation:slideInToast .4s ease; min-width:280px; }
     .toast-ngaary.error { background:#dc2626; }
     @keyframes slideInToast { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    
+    .multiple-images-badge {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        border-radius: 20px;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        z-index: 5;
+    }
 </style>
 
 <!-- ====== HERO ====== -->
@@ -129,7 +220,7 @@ function getBadgeIndex(array $produit): ?array {
                         <div class="small opacity-75">Clients satisfaits</div>
                     </div>
                     <div class="border-start border-secondary ps-4">
-                        <div class="h4 fw-bold mb-0" style="color:#4ade80;"><?= count($tousLesProduits ?? $produits) ?>+</div>
+                        <div class="h4 fw-bold mb-0" style="color:#4ade80;"><?= (int)($tousLesProduits ?? count($produits)) ?>+</div>
                         <div class="small opacity-75">Produits disponibles</div>
                     </div>
                     <div class="border-start border-secondary ps-4">
@@ -139,13 +230,9 @@ function getBadgeIndex(array $produit): ?array {
                 </div>
             </div>
 
-            <!-- IMAGE HERO -->
             <div class="col-lg-6 d-none d-lg-flex justify-content-center align-items-center hero-image">
                 <div style="width:100%; border-radius:24px; overflow:hidden; border:2px dashed rgba(255,255,255,.1); background:rgba(255,255,255,.05); animation:floating 3s ease-in-out infinite;">
-                    <img src="<?= URL_ROOT ?>/imgs/herologo.png"
-                         alt="NGAARY SHOP"
-                         style="width:100%; max-height:400px; object-fit:cover; display:block;"
-                         onerror="this.style.display='none'; document.getElementById('hero-placeholder').style.display='flex';">
+                    <img src="<?= url('imgs/herologo.png') ?>" alt="NGAARY SHOP" style="width:100%; max-height:400px; object-fit:cover; display:block;" onerror="this.style.display='none'; document.getElementById('hero-placeholder').style.display='flex';">
                     <div id="hero-placeholder" style="display:none; width:100%; padding:60px; align-items:center; justify-content:center; text-align:center;">
                         <i class="bi bi-image" style="font-size:8rem; color:rgba(255,255,255,.15);"></i>
                     </div>
@@ -171,7 +258,7 @@ function getBadgeIndex(array $produit): ?array {
 </div>
 <?php endif; ?>
 
-<!-- ====== AVANTAGES ====== -->
+<!-- AVANTAGES -->
 <section class="py-4 bg-white border-bottom">
     <div class="container">
         <div class="row g-3">
@@ -207,7 +294,7 @@ function getBadgeIndex(array $produit): ?array {
     </div>
 </section>
 
-<!-- ====== CATÉGORIES ====== -->
+<!-- CATÉGORIES -->
 <?php if (!empty($categories)) : ?>
 <section class="py-5">
     <div class="container">
@@ -224,9 +311,7 @@ function getBadgeIndex(array $produit): ?array {
             <div class="col-6 col-md-3 reveal reveal-delay-<?= ($i % 4) + 1 ?>">
                 <a href="<?= url('boutique.php?categorie=' . urlencode($cat['nom'])) ?>" class="text-decoration-none">
                     <div class="categorie-card text-center">
-                        <div class="categorie-icon">
-                            <i class="bi <?= $icones[$i % count($icones)] ?>"></i>
-                        </div>
+                        <div class="categorie-icon"><i class="bi <?= $icones[$i % count($icones)] ?>"></i></div>
                         <h6 class="fw-bold mb-1"><?= htmlspecialchars($cat['nom']) ?></h6>
                         <small class="text-muted"><?= $cat['nb_produits'] ?> articles</small>
                     </div>
@@ -238,7 +323,7 @@ function getBadgeIndex(array $produit): ?array {
 </section>
 <?php endif; ?>
 
-<!-- ====== MEILLEURES VENTES ====== -->
+<!-- MEILLEURES VENTES -->
 <section class="py-5 bg-white">
     <div class="container">
         <div class="d-flex justify-content-between align-items-end mb-4 reveal">
@@ -258,67 +343,60 @@ function getBadgeIndex(array $produit): ?array {
         <?php else : ?>
         <div class="row g-4">
             <?php foreach ($produits as $idx => $produit) :
-                $badge       = getBadgeIndex($produit);
-                $prixAffiche = $produit['prix_promo'] ?? $produit['prix'];
+                $badge = getBadgeIndex($produit);
+                $prixAffiche = ($produit['prix_promo'] && $produit['prix_promo'] > 0) ? $produit['prix_promo'] : $produit['prix'];
+                $imageUrl = getProductImage($produit);
+                
+                // Comptage des images
+                $imageCount = 0;
+                if (!empty($produit['images'])) {
+                    $decoded = json_decode($produit['images'], true);
+                    $imageCount = is_array($decoded) ? count($decoded) : 0;
+                }
+                if ($imageCount === 0 && !empty($produit['image'])) {
+                    $imageCount = 1;
+                }
             ?>
             <div class="col-6 col-lg-3 reveal reveal-delay-<?= ($idx % 4) + 1 ?>">
                 <div class="card product-card h-100">
-
-                    <!-- IMAGE -->
-                    <a href="<?= url('produit.php?id=' . $produit['id_produit']) ?>" class="text-decoration-none">
-                        <div class="product-img">
-                            <?php if ($badge) : ?>
-                                <span class="badge bg-<?= $badge['color'] ?> position-absolute top-0 start-0 m-2">
-                                    <?= $badge['label'] ?>
-                                </span>
-                            <?php endif; ?>
-                            <button type="button" class="btn-wishlist position-absolute top-0 end-0 m-2"
-                                    onclick="event.preventDefault()">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                            <?php if (!empty($produit['image'])) : ?>
-                                <img src="<?= htmlspecialchars($produit['image']) ?>"
-                                     alt="<?= htmlspecialchars($produit['nom']) ?>">
-                            <?php else : ?>
-                                <i class="bi bi-image" style="font-size:4rem; color:#a7c9b3;"></i>
-                            <?php endif; ?>
-                        </div>
-                    </a>
-
-                    <!-- INFOS -->
+                    <div class="product-img">
+                        <?php if ($badge) : ?>
+                            <span class="badge bg-<?= $badge['color'] ?> position-absolute top-0 start-0 m-2 z-1"><?= $badge['label'] ?></span>
+                        <?php endif; ?>
+                        <button type="button" class="btn-wishlist position-absolute top-0 end-0 m-2 z-1 wishlist-btn" data-id="<?= $produit['id_produit'] ?>" onclick="event.preventDefault(); toggleWishlist(this)" title="Ajouter aux favoris">
+                            <i class="bi bi-heart<?= in_array($produit['id_produit'], $favorisIds) ? '-fill text-danger' : '' ?>"></i>
+                        </button>
+                        <a href="<?= url('produit.php?id=' . $produit['id_produit']) ?>" class="d-block w-100 h-100">
+                            <img src="<?= $imageUrl ?>" alt="<?= htmlspecialchars($produit['nom']) ?>" onerror="this.src='<?= url('assets/img/produits/default.jpg') ?>'">
+                        </a>
+                        <?php if ($imageCount > 1) : ?>
+                            <span class="position-absolute bottom-0 end-0 m-2 bg-dark bg-opacity-75 text-white rounded-pill px-2 py-1 small" style="font-size: 0.7rem;">
+                                <i class="bi bi-images"></i> <?= $imageCount ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
                     <div class="card-body d-flex flex-column px-3 py-3">
-                        <small class="text-muted mb-1" style="font-size:.75rem;">
-                            <?= htmlspecialchars($produit['categorie_nom'] ?? '') ?>
-                        </small>
+                        <small class="text-muted mb-1" style="font-size:.75rem;"><?= htmlspecialchars($produit['categorie_nom'] ?? '') ?></small>
                         <h5 class="card-title h6 mb-1 fw-semibold">
-                            <a href="<?= url('produit.php?id=' . $produit['id_produit']) ?>"
-                               class="text-dark text-decoration-none">
-                                <?= htmlspecialchars($produit['nom']) ?>
-                            </a>
+                            <a href="<?= url('produit.php?id=' . $produit['id_produit']) ?>" class="text-dark text-decoration-none"><?= htmlspecialchars($produit['nom']) ?></a>
                         </h5>
                         <div class="mt-auto">
                             <div class="d-flex align-items-center gap-2 mb-2">
                                 <span class="text-success fw-bold"><?= formatFCFA((int)$prixAffiche) ?></span>
-                                <?php if ($produit['prix_promo']) : ?>
-                                <span class="text-muted text-decoration-line-through small">
-                                    <?= formatFCFA((int)$produit['prix']) ?>
-                                </span>
+                                <?php if (!empty($produit['prix_promo']) && $produit['prix_promo'] < $produit['prix']) : ?>
+                                <span class="text-muted text-decoration-line-through small"><?= formatFCFA((int)$produit['prix']) ?></span>
                                 <?php endif; ?>
                             </div>
                             <?php if ($produit['stock'] > 0) : ?>
                             <form action="<?= url('cart_add.php') ?>" method="POST">
-                                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+                                <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                                 <input type="hidden" name="id_produit" value="<?= $produit['id_produit'] ?>">
-                                <input type="hidden" name="quantite"   value="1">
-                                <input type="hidden" name="retour"     value="index.php">
-                                <button type="submit" class="btn-cart">
-                                    <i class="bi bi-cart-plus me-1"></i>Ajouter
-                                </button>
+                                <input type="hidden" name="quantite" value="1">
+                                <input type="hidden" name="retour" value="index.php">
+                                <button type="submit" class="btn-cart"><i class="bi bi-cart-plus me-1"></i>Ajouter</button>
                             </form>
                             <?php else : ?>
-                            <button class="btn-cart" disabled style="opacity:.5; cursor:not-allowed;">
-                                Indisponible
-                            </button>
+                            <button class="btn-cart" disabled style="opacity:.5; cursor:not-allowed;">Indisponible</button>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -330,28 +408,23 @@ function getBadgeIndex(array $produit): ?array {
     </div>
 </section>
 
-<!-- ====== BANNIÈRE PROMO ====== -->
+<!-- BANNIÈRE PROMO -->
 <section class="container py-5 reveal">
     <div class="promo-banner">
         <div class="row align-items-center">
             <div class="col-md-8 mb-3 mb-md-0">
                 <span class="text-uppercase small fw-bold opacity-75" style="letter-spacing:2px;">⏳ Offre limitée</span>
                 <h3 class="font-serif mt-1 mb-2 fw-bold">-15% sur votre première commande</h3>
-                <p class="opacity-75 mb-0">
-                    Utilisez le code <strong class="text-white">NGAARY15</strong> à la caisse.<br>
-                    Livraison gratuite dès <?= formatFCFA(15000) ?> partout au Sénégal.
-                </p>
+                <p class="opacity-75 mb-0">Utilisez le code <strong class="text-white">NGAARY15</strong> à la caisse.<br>Livraison gratuite dès <?= formatFCFA(15000) ?> partout au Sénégal.</p>
             </div>
             <div class="col-md-4 text-md-end">
-                <a href="<?= url('boutique.php') ?>" class="btn btn-light fw-bold px-4 py-3 rounded-pill text-success fs-6">
-                    J'en profite →
-                </a>
+                <a href="<?= url('boutique.php') ?>" class="btn btn-light fw-bold px-4 py-3 rounded-pill text-success fs-6">J'en profite →</a>
             </div>
         </div>
     </div>
 </section>
 
-<!-- ====== AVIS CLIENTS ====== -->
+<!-- AVIS CLIENTS -->
 <section class="pb-5">
     <div class="container">
         <div class="text-center mb-4 reveal">
@@ -388,10 +461,7 @@ function getBadgeIndex(array $produit): ?array {
         <div class="fw-semibold small"><?= htmlspecialchars($flashSuccess) ?></div>
         <a href="<?= url('cart.php') ?>" class="text-success small text-decoration-none">Voir le panier →</a>
     </div>
-    <button onclick="document.getElementById('toast-success').remove()"
-            style="background:none; border:none; color:white; margin-left:auto; cursor:pointer;">
-        <i class="bi bi-x-lg"></i>
-    </button>
+    <button onclick="document.getElementById('toast-success').remove()" style="background:none; border:none; color:white; margin-left:auto; cursor:pointer;"><i class="bi bi-x-lg"></i></button>
 </div>
 <?php endif; ?>
 
@@ -401,6 +471,31 @@ function getBadgeIndex(array $produit): ?array {
     }, { threshold: 0.1 });
     document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
     setTimeout(() => document.getElementById('toast-success')?.remove(), 4000);
+
+    function toggleWishlist(btn) {
+        const idProduit = btn.dataset.id;
+        const icon = btn.querySelector('i');
+        fetch('<?= url('wishlist_toggle.php') ?>', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+            body: 'id_produit=' + idProduit + '&csrf_token=<?= $_SESSION['csrf_token'] ?? '' ?>'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'unauthenticated') { window.location.href = '<?= url('login.php') ?>'; return; }
+            if (data.status === 'success') {
+                icon.className = data.action === 'added' ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+                const t = document.createElement('div');
+                t.style.cssText = 'position:fixed;bottom:80px;right:30px;z-index:9999;background:#0d2818;color:white;border-radius:12px;padding:12px 20px;box-shadow:0 4px 20px rgba(0,0,0,.2);font-size:.9rem;';
+                t.innerHTML = data.action === 'added' ? '❤️ Ajouté aux favoris !' : '🗑️ Retiré des favoris.';
+                document.body.appendChild(t);
+                setTimeout(() => t.remove(), 2500);
+            }
+        });
+    }
 </script>
 
-<?php include __DIR__ . '/../views/layouts/footer.php'; ?>
+<?php
+$content = ob_get_clean();
+require_once dirname(__DIR__) . '/views/layouts/main_layout.php';
+?>

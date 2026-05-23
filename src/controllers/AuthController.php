@@ -6,6 +6,7 @@ use App\Repositories\UserRepository;
 use App\Models\User;
 use App\Utils\Auth;
 use App\Utils\Session;
+use App\Services\MailService;
 
 /**
  * Classe AuthController - Contrôleur pour l'authentification utilisateur
@@ -153,6 +154,12 @@ class AuthController {
         if ($this->userRepository->save($user)) {
             unset($_SESSION['old']);
             Auth::login($user);
+            // Email de bienvenue
+            try {
+                MailService::sendWelcome($user->getPrenom(), $user->getEmail());
+            } catch (\Exception $e) {
+                error_log("[AuthController] Email bienvenue : " . $e->getMessage());
+            }
             Session::flash('success', 'Inscription réussie ! Bienvenue ' . $user->getFullName() . ' !');
             $this->redirect(url('index.php'));
         } else {

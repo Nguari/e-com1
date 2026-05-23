@@ -3,113 +3,121 @@
 namespace App\Services;
 
 use PDO;
-use App\Models\Cart;
-use App\Repositories\CartRepository;
 
 class OrderService {
-
-    private PDO            $db;
-    private CartRepository $cartRepository;
-
+    
+    private PDO $db;
+    
     public function __construct(PDO $db) {
-        $this->db             = $db;
-        $this->cartRepository = new CartRepository($db);
+        $this->db = $db;
     }
-
-    /**
-     * Créer une commande depuis le panier
-     *
-     * @return array Données de la commande créée
-     */
-    public function createFromCart(
-        Cart   $cart,
-        int    $idUtilisateur,
-        array  $adresse,
-        string $modePaiement,
-        string $notes = ''
-    ): array {
-
-        // Générer un numéro de commande unique
-        $numeroCommande = 'CMD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
-
-        // Calculer le total
-        $sousTotal      = $cart->getTotal();
-        $fraisLivraison = $cart->livraisonGratuite() ? 0 : 2500;
-        $montantTotal   = $sousTotal + $fraisLivraison;
-
-        $this->db->beginTransaction();
-
+    
+    public function createFromCart($cart, $userId, $adresse, $modePaiement, $notes) {
         try {
-            // 1 — Insérer l'adresse de livraison
-            $stmtAdresse = $this->db->prepare("
-                INSERT INTO adresses (id_utilisateur, nom_complet, rue, ville, code_postal, pays, telephone, par_defaut)
-                VALUES (:id_utilisateur, :nom_complet, :rue, :ville, :code_postal, :pays, :telephone, 0)
-            ");
+            $numeroCommande = 'CMD-' . date('Ymd') . '-' . uniqid();
+            $montantTotal = $cart->getTotal();
+            
+            // Insérer l'adresse
+            $sqlAdresse = "INSERT INTO adresses (
+                                id_utilisateur, 
+                                nom_complet, 
+                                rue, 
+                                ville, 
+                                code_postal, 
+                                tel, 
+                                pays
+                            ) VALUES (
+                                :id_utilisateur, 
+                                :nom_complet, 
+                                :rue, 
+                                :ville, 
+                                :code_postal, 
+                                :tel, 
+                                :pays
+                            )";
+            $stmtAdresse = $this->db->prepare($sqlAdresse);
             $stmtAdresse->execute([
-                ':id_utilisateur' => $idUtilisateur,
+                ':id_utilisateur' => $userId,
                 ':nom_complet'    => $adresse['nom_complet'],
                 ':rue'            => $adresse['rue'],
                 ':ville'          => $adresse['ville'],
-                ':code_postal'    => $adresse['code_postal'] ?? '00000',
-                ':pays'           => $adresse['pays'] ?? 'Sénégal',
-                ':telephone'      => $adresse['telephone'],
+                ':code_postal'    => $adresse['code_postal'],
+                ':tel'            => $adresse['telephone'],
+                ':pays'           => $adresse['pays']
             ]);
-            $idAdresse = (int)$this->db->lastInsertId();
-
-            // 2 — Créer la commande
-            $stmtCommande = $this->db->prepare("
-                INSERT INTO commandes (numero_commande, id_utilisateur, montant_total, statut, id_adresse_livraison, notes)
-                VALUES (:numero, :id_utilisateur, :montant_total, 'en_attente', :id_adresse, :notes)
-            ");
-            $stmtCommande->execute([
-                ':numero'         => $numeroCommande,
-                ':id_utilisateur' => $idUtilisateur,
-                ':montant_total'  => $montantTotal,
-                ':id_adresse'     => $idAdresse,
-                ':notes'          => $notes,
+            $adresseId = $this->db->lastInsertId();
+            
+            // Insérer la commande
+            $sql = "INSERT INTO commandes (
+                        numero_commande, 
+                        id_utilisateur, 
+                        id_adresse,
+                        montant_total, 
+                        statut, 
+                        notes, 
+                        date_commande
+                    ) VALUES (
+                        :numero_commande, 
+                        :id_utilisateur, 
+                        :id_adresse,
+                        :montant_total, 
+                        :statut, 
+                        :notes, 
+                        NOW()
+                    )";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                ':numero_commande' => $numeroCommande,
+                ':id_utilisateur'  => $userId,
+                ':id_adresse'      => $adresseId,
+                ':montant_total'   => $montantTotal,
+                ':statut'          => 'en_attente',
+                ':notes'           => $notes ?? ''
             ]);
-            $idCommande = (int)$this->db->lastInsertId();
-
-            // 3 — Créer les lignes de commande
-            $stmtLigne = $this->db->prepare("
-                INSERT INTO lignes_commande (id_commande, id_produit, nom_produit, quantite, prix_unitaire, sous_total)
-                VALUES (:id_commande, :id_produit, :nom_produit, :quantite, :prix_unitaire, :sous_total)
-            ");
+            $commandeId = $this->db->lastInsertId();
+            
+            // Lignes de commande
             foreach ($cart->getItems() as $item) {
+                $sousTotal = $item->getPrixUnitaire() * $item->getQuantite();
+                $sqlLigne = "INSERT INTO lignes_commande (
+                                id_commande, 
+                                id_produit, 
+                                nom_produit, 
+                                quantite, 
+                                prix_unitaire, 
+                                sous_total
+                            ) VALUES (
+                                :id_commande, 
+                                :id_produit, 
+                                :nom_produit, 
+                                :quantite, 
+                                :prix_unitaire, 
+                                :sous_total
+                            )";
+                $stmtLigne = $this->db->prepare($sqlLigne);
                 $stmtLigne->execute([
-                    ':id_commande'   => $idCommande,
+                    ':id_commande'   => $commandeId,
                     ':id_produit'    => $item->getIdProduit(),
                     ':nom_produit'   => $item->getNomProduit(),
                     ':quantite'      => $item->getQuantite(),
                     ':prix_unitaire' => $item->getPrixUnitaire(),
-                    ':sous_total'    => $item->getSousTotal(),
+                    ':sous_total'    => $sousTotal
                 ]);
             }
-
-            // 4 — Créer le paiement
-            $stmtPaiement = $this->db->prepare("
-                INSERT INTO paiements (id_commande, montant, mode_paiement, statut)
-                VALUES (:id_commande, :montant, :mode_paiement, 'en_attente')
-            ");
-            $stmtPaiement->execute([
-                ':id_commande'   => $idCommande,
-                ':montant'       => $montantTotal,
-                ':mode_paiement' => $modePaiement,
-            ]);
-
-            // 5 — Vider le panier
-            $this->cartRepository->clearCart($idUtilisateur);
-
-            $this->db->commit();
-
+            
+            // Vider le panier
+            $stmt = $this->db->prepare("DELETE FROM panier WHERE id_utilisateur = :id");
+            $stmt->execute([':id' => $userId]);
+            
             return [
-                'id'     => $idCommande,
-                'numero' => $numeroCommande,
-                'total'  => $montantTotal,
+                'id_commande'      => $commandeId,
+                'numero_commande'  => $numeroCommande,
+                'montant_total'    => $montantTotal,
+                'statut'           => 'en_attente'
             ];
-
+            
         } catch (\Exception $e) {
-            $this->db->rollBack();
+            error_log("OrderService Error: " . $e->getMessage());
             throw $e;
         }
     }

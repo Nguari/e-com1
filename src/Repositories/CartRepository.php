@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\BaseEntity;
+use PDO;
 
 /**
  * CartRepository
@@ -14,6 +15,13 @@ use App\Models\BaseEntity;
 class CartRepository extends BaseRepository {
 
     protected string $tableName = 'panier';
+
+    // =========================================
+    // CONSTRUCTEUR
+    // =========================================
+    public function __construct() {
+        parent::__construct(); // Appelle le constructeur de BaseRepository
+    }
 
     // =========================================
     // HYDRATATION
@@ -60,9 +68,7 @@ class CartRepository extends BaseRepository {
                         pr.nom,
                         pr.prix,
                         pr.prix_promo,
-                        (SELECT url FROM images_produits 
-                         WHERE id_produit = pr.id_produit 
-                         AND principale = TRUE LIMIT 1) AS image_principale
+                        pr.image as image_principale
                     FROM {$this->tableName} p
                     JOIN produits pr ON p.id_produit = pr.id_produit
                     WHERE p.id_utilisateur = :id_utilisateur
@@ -85,7 +91,6 @@ class CartRepository extends BaseRepository {
 
     /**
      * Ajouter ou mettre à jour un article dans le panier
-     * ✅ Deux paramètres distincts pour éviter Invalid parameter number
      */
     public function addOrUpdate(int $idUtilisateur, int $idProduit, int $quantite = 1): bool {
         try {

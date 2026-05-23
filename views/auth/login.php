@@ -1,4 +1,14 @@
 <?php
+require_once dirname(__DIR__, 2) . '/config/config.php';
+
+use App\Utils\Auth;
+use App\Utils\Session;
+
+// Si déjà connecté, rediriger vers l'accueil
+if (Auth::check()) {
+    header('Location: ' . url('index.php'));
+    exit();
+}
 
 $pageTitle   = 'Connexion - NGAARY SHOP';
 $currentPage = 'login.php';
@@ -6,6 +16,60 @@ $currentPage = 'login.php';
 // Token CSRF
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Traitement du formulaire
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Vérifier le token CSRF
+    if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        Session::flash('error', 'Erreur de sécurité. Veuillez réessayer.');
+        header('Location: ' . url('login.php'));
+        exit();
+    }
+    
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $remember = isset($_POST['remember']);
+    
+    // Sauvegarder l'email pour le réafficher
+    $_SESSION['old']['email'] = $email;
+    
+    // Validation des champs
+    if (empty($email) || empty($password)) {
+        Session::flash('error', 'Veuillez remplir tous les champs.');
+        header('Location: ' . url('login.php'));
+        exit();
+    }
+    
+    // Vérifier les tentatives de connexion
+    if (!Auth::checkLoginAttempts($email)) {
+        $remaining = Auth::getLockoutTimeRemaining($email);
+        Session::flash('error', "Trop de tentatives. Veuillez réessayer dans {$remaining} minute(s).");
+        header('Location: ' . url('login.php'));
+        exit();
+    }
+    
+    // Tenter la connexion
+    if (Auth::attempt($email, $password)) {
+        // Gérer "Se souvenir de moi"
+        if ($remember) {
+            $token = bin2hex(random_bytes(32));
+            $_SESSION['remember_token'] = $token;
+            setcookie('remember_token', $token, time() + 86400 * 30, '/', '', false, true);
+        }
+        
+        Session::flash('success', 'Bienvenue ' . Auth::user()->getPrenom() . ' !');
+        
+        // Redirection vers la page demandée ou l'accueil
+        $redirect = $_GET['redirect'] ?? 'index.php';
+        header('Location: ' . url($redirect));
+        exit();
+    } else {
+        // La tentative a échoué, le compteur est incrémenté automatiquement dans Auth::attempt()
+        Session::flash('error', 'Email ou mot de passe incorrect.');
+        header('Location: ' . url('login.php'));
+        exit();
+    }
 }
 
 // Récupérer l'ancien email en cas d'erreur
@@ -16,17 +80,17 @@ ob_start();
 ?>
 
 <!-- MESSAGES FLASH -->
-<?php if (\App\Utils\Session::hasFlash('error')) : ?>
+<?php if (Session::hasFlash('error')) : ?>
     <div class="alert alert-danger d-flex align-items-center gap-2 rounded-3 mx-auto mt-4" style="max-width: 900px;">
         <i class="bi bi-exclamation-circle-fill"></i>
-        <span><?= \App\Utils\Session::getFlash('error') ?></span>
+        <span><?= Session::getFlash('error') ?></span>
     </div>
 <?php endif; ?>
 
-<?php if (\App\Utils\Session::hasFlash('success')) : ?>
+<?php if (Session::hasFlash('success')) : ?>
     <div class="alert alert-success d-flex align-items-center gap-2 rounded-3 mx-auto mt-4" style="max-width: 900px;">
         <i class="bi bi-check-circle-fill"></i>
-        <span><?= \App\Utils\Session::getFlash('success') ?></span>
+        <span><?= Session::getFlash('success') ?></span>
     </div>
 <?php endif; ?>
 
@@ -98,6 +162,14 @@ ob_start();
     }
     .form-control:focus {
         transform: translateY(-1px);
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: #f8f9fa;
+        border-color: #16a34a;
+    }
+    .btn-outline-secondary:hover span {
+        color: #16a34a;
     }
 </style>
 
@@ -216,7 +288,8 @@ ob_start();
                                             <button type="button"
                                                     class="input-group-text bg-light border-start-0"
                                                     onclick="togglePassword()"
-                                                    title="Afficher/masquer">
+                                                    title="Afficher/masquer"
+                                                    style="cursor: pointer;">
                                                 <i class="bi bi-eye text-secondary" id="eyeIcon"></i>
                                             </button>
                                         </div>
@@ -256,14 +329,14 @@ ob_start();
                                     <div class="login-field row g-2">
                                         <div class="col-6">
                                             <button type="button"
-                                                    class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2 rounded-3">
+                                                    class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2 rounded-3 py-2">
                                                 <img src="https://www.google.com/favicon.ico" width="18" alt="Google">
                                                 <span class="small fw-medium">Google</span>
                                             </button>
                                         </div>
                                         <div class="col-6">
                                             <button type="button"
-                                                    class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2 rounded-3">
+                                                    class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2 rounded-3 py-2">
                                                 <i class="bi bi-facebook" style="color: #1877f2; font-size: 1.1rem;"></i>
                                                 <span class="small fw-medium">Facebook</span>
                                             </button>
@@ -295,11 +368,24 @@ ob_start();
     function togglePassword() {
         const input = document.getElementById('password');
         const icon  = document.getElementById('eyeIcon');
-        input.type     = input.type === 'password' ? 'text' : 'password';
-        icon.className = input.type === 'password'
-            ? 'bi bi-eye text-secondary'
-            : 'bi bi-eye-slash text-success';
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'bi bi-eye-slash text-success';
+        } else {
+            input.type = 'password';
+            icon.className = 'bi bi-eye text-secondary';
+        }
     }
+    
+    // Masquer les messages flash après 5 secondes
+    setTimeout(() => {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            alert.style.transition = 'opacity 0.5s';
+            alert.style.opacity = '0';
+            setTimeout(() => alert.remove(), 500);
+        });
+    }, 5000);
 </script>
 
 <?php

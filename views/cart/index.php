@@ -1,4 +1,21 @@
 <?php
+require_once dirname(__DIR__, 2) . '/config/config.php';
+
+use App\Utils\Auth;
+use App\Utils\Session;
+use App\Repositories\CartRepository;
+use App\Config\Database;
+
+// Vérifier si l'utilisateur est connecté
+if (!Auth::check()) {
+    Session::flash('error', 'Veuillez vous connecter pour accéder à votre panier.');
+    header('Location: ' . url('login.php'));
+    exit();
+}
+
+$db = Database::getInstance()->getConnection();
+$cartRepo = new CartRepository($db);
+$cart = $cartRepo->getCartByUser(Auth::id());
 
 $pageTitle   = 'Mon Panier - NGAARY SHOP';
 $currentPage = 'cart.php';
@@ -6,9 +23,8 @@ $currentPage = 'cart.php';
 ob_start();
 
 // Flash messages
-$flashSuccess = $_SESSION['flash_success'] ?? null;
-$flashError   = $_SESSION['flash_error']   ?? null;
-unset($_SESSION['flash_success'], $_SESSION['flash_error']);
+$flashSuccess = Session::getFlash('success');
+$flashError = Session::getFlash('error');
 ?>
 
 <!-- BREADCRUMB -->
@@ -57,7 +73,7 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
                 <i class="bi bi-cart-x" style="font-size: 5rem; color: #d1d5db;"></i>
                 <h4 class="fw-bold mt-4 mb-2">Votre panier est vide</h4>
                 <p class="text-muted mb-4">Découvrez nos produits et commencez vos achats !</p>
-                <a href="<?= url('/Boutique.php') ?>" class="btn btn-success rounded-3 px-4 py-2 fw-semibold">
+                <a href="<?= url('boutique.php') ?>" class="btn btn-success rounded-3 px-4 py-2 fw-semibold">
                     <i class="bi bi-bag me-2"></i>Voir la boutique
                 </a>
             </div>
@@ -91,10 +107,13 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
                                 <!-- IMAGE -->
                                 <div class="flex-shrink-0 bg-light rounded-3 d-flex align-items-center justify-content-center overflow-hidden"
                                      style="width: 90px; height: 90px;">
-                                    <?php if ($item->getImageProduit()) : ?>
-                                        <img src="<?= htmlspecialchars($item->getImageProduit()) ?>"
+                                    <?php 
+                                    $imagePath = $item->getImageProduit();
+                                    if (!empty($imagePath)) : ?>
+                                        <img src="<?= url('assets/img/produits/' . $imagePath) ?>"
                                              alt="<?= htmlspecialchars($item->getNomProduit()) ?>"
-                                             class="img-fluid object-fit-cover w-100 h-100">
+                                             class="img-fluid object-fit-cover w-100 h-100"
+                                             onerror="this.src='<?= url('assets/img/produits/default.jpg') ?>'">
                                     <?php else : ?>
                                         <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
                                     <?php endif; ?>
@@ -158,7 +177,7 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
                     </div>
 
-                    <a href="<?= url('/Boutique.php') ?>" class="btn btn-outline-success rounded-3 mt-3">
+                    <a href="<?= url('boutique.php') ?>" class="btn btn-outline-success rounded-3 mt-3">
                         <i class="bi bi-arrow-left me-2"></i>Continuer les achats
                     </a>
                 </div>

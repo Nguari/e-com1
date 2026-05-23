@@ -1,4 +1,12 @@
 <?php
+
+/**
+ * Dashboard - Admin
+ * 
+ * @var array<string, int|string> $stats Statistiques clés
+ * @var array<int, array> $dernieresCommandes Liste des dernières commandes
+ * @var array<int, array> $plusVendus Liste des produits les plus vendus
+ */
 $pageTitle = 'Dashboard - Admin';
 $adminPage = 'dashboard';
 include view_path('admin/layouts/header.php');
@@ -11,7 +19,7 @@ include view_path('admin/layouts/header.php');
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <p class="text-muted small mb-1">Commandes en attente</p>
-                    <h3 class="fw-bold mb-0"><?= $stats['commandes_attente'] ?></h3>
+                    <h3 class="fw-bold mb-0"><?= $stats['commandes_attente'] ?? 0 ?></h3>
                 </div>
                 <div class="stat-icon bg-warning bg-opacity-10">
                     <i class="bi bi-clock text-warning"></i>
@@ -28,14 +36,14 @@ include view_path('admin/layouts/header.php');
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <p class="text-muted small mb-1">CA du mois</p>
-                    <h3 class="fw-bold mb-0"><?= formatFCFA((int)$stats['ca_mois']) ?></h3>
+                    <h3 class="fw-bold mb-0"><?= formatFCFA((int)($stats['ca_mois'] ?? 0)) ?></h3>
                 </div>
                 <div class="stat-icon bg-success bg-opacity-10">
                     <i class="bi bi-cash-stack text-success"></i>
                 </div>
             </div>
             <p class="text-muted small mt-2 mb-0">
-                Total : <?= formatFCFA((int)$stats['ca_total']) ?>
+                Total : <?= formatFCFA((int)($stats['ca_total'] ?? 0)) ?>
             </p>
         </div>
     </div>
@@ -45,7 +53,7 @@ include view_path('admin/layouts/header.php');
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <p class="text-muted small mb-1">Produits actifs</p>
-                    <h3 class="fw-bold mb-0"><?= $stats['produits_actifs'] ?></h3>
+                    <h3 class="fw-bold mb-0"><?= $stats['produits_actifs'] ?? 0 ?></h3>
                 </div>
                 <div class="stat-icon bg-primary bg-opacity-10">
                     <i class="bi bi-box-seam text-primary"></i>
@@ -62,7 +70,7 @@ include view_path('admin/layouts/header.php');
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <p class="text-muted small mb-1">Clients inscrits</p>
-                    <h3 class="fw-bold mb-0"><?= $stats['clients_total'] ?></h3>
+                    <h3 class="fw-bold mb-0"><?= $stats['clients_total'] ?? 0 ?></h3>
                 </div>
                 <div class="stat-icon bg-info bg-opacity-10">
                     <i class="bi bi-people text-info"></i>
@@ -106,11 +114,21 @@ include view_path('admin/layouts/header.php');
                                     <?= htmlspecialchars($cmd['numero_commande']) ?>
                                 </a>
                             </td>
-                            <td class="small"><?= htmlspecialchars($cmd['client']) ?></td>
-                            <td class="fw-semibold small"><?= formatFCFA((int)$cmd['montant_total']) ?></td>
+                            <td class="small"><?= htmlspecialchars($cmd['client'] ?? '—') ?></td>
+                            <td class="fw-semibold small"><?= formatFCFA((int)($cmd['montant_total'] ?? 0)) ?></td>
                             <td>
-                                <span class="badge-statut badge-<?= $cmd['statut'] ?>">
-                                    <?= ucfirst(str_replace('_', ' ', $cmd['statut'])) ?>
+                                <?php
+                                $statut = $cmd['statut'] ?? 'inconnu';
+                                $badgeClass = match($statut) {
+                                    'en_attente' => 'warning',
+                                    'confirmee' => 'info', 
+                                    'livree' => 'success',
+                                    'annulee' => 'danger',
+                                    default => 'secondary'
+                                };
+                                ?>
+                                <span class="badge-statut badge-<?= $badgeClass ?>">
+                                    <?= ucfirst(str_replace('_', ' ', $statut)) ?>
                                 </span>
                             </td>
                             <td class="text-muted small">
@@ -119,7 +137,7 @@ include view_path('admin/layouts/header.php');
                         </tr>
                         <?php endforeach; ?>
                         <?php if (empty($dernieresCommandes)) : ?>
-                        <tr><td colspan="5" class="text-center text-muted py-4">Aucune commande</td></tr>
+                        <td><td colspan="5" class="text-center text-muted py-4">Aucune commande</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -145,9 +163,9 @@ include view_path('admin/layouts/header.php');
                         </div>
                         <div class="flex-grow-1">
                             <div class="small fw-semibold"><?= htmlspecialchars($p['nom']) ?></div>
-                            <div class="text-muted" style="font-size: 0.75rem;"><?= $p['total_vendu'] ?> vendus</div>
+                            <div class="text-muted" style="font-size: 0.75rem;"><?= $p['total_vendus'] ?? 0 ?> vendus</div>
                         </div>
-                        <span class="text-success fw-bold small"><?= formatFCFA((int)$p['prix']) ?></span>
+                        <span class="text-success fw-bold small"><?= formatFCFA((int)($p['prix'] ?? 0)) ?></span>
                     </div>
                     <?php endforeach; ?>
                 <?php endif; ?>

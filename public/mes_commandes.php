@@ -14,15 +14,14 @@ try {
     $db   = Database::getInstance()->getConnection();
     $stmt = $db->prepare("
         SELECT c.id_commande, c.numero_commande, c.date_commande,
-               c.montant_total, c.statut,
-               COUNT(lc.id_ligne) AS nb_articles,
-               p.mode_paiement
-        FROM commandes c
-        LEFT JOIN lignes_commande lc ON c.id_commande = lc.id_commande
-        LEFT JOIN paiements p ON c.id_commande = p.id_commande
-        WHERE c.id_utilisateur = :id
-        GROUP BY c.id_commande
-        ORDER BY c.date_commande DESC
+       c.montant_total, c.statut,
+       (SELECT COUNT(*) FROM lignes_commande lc WHERE lc.id_commande = c.id_commande) AS nb_articles,
+       p.mode_paiement
+       FROM commandes c
+       LEFT JOIN paiements p ON c.id_commande = p.id_commande
+       WHERE c.id_utilisateur = :id
+       ORDER BY c.date_commande DESC
+
     ");
     $stmt->execute([':id' => Auth::id()]);
     $commandes = $stmt->fetchAll();

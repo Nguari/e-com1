@@ -1,4 +1,12 @@
 <?php
+/**
+ * Liste des utilisateurs - Admin
+ * 
+ * @var array<int, array> $utilisateurs Liste des utilisateurs
+ * @var string|null $flashSuccess Message de succès
+ * @var string|null $flashError Message d'erreur
+ */
+
 $pageTitle = 'Utilisateurs - Admin';
 $adminPage = 'utilisateurs';
 include view_path('admin/layouts/header.php');

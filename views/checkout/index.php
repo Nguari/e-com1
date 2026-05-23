@@ -1,4 +1,13 @@
 <?php
+/**
+ * Page de finalisation de commande
+ * 
+ * @var \App\Models\Cart $cart Panier de l'utilisateur
+ * @var bool $enableWave Wave activé
+ * @var bool $enableOm Orange Money activé
+ * @var bool $enableCash Espèces activé
+ * @var string|null $flashError Message d'erreur flash
+ */
 
 $pageTitle   = 'Commander - NGAARY SHOP';
 $currentPage = 'checkout.php';
@@ -46,7 +55,7 @@ if (empty($_SESSION['csrf_token'])) {
             </div>
         <?php endif; ?>
 
-        <form action="<?= url('checkout.php') ?>" method="POST">
+        <form action="<?= url('checkout.php') ?>" method="POST" id="checkoutForm">
             <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
 
             <div class="row g-4 align-items-start">
@@ -70,7 +79,7 @@ if (empty($_SESSION['csrf_token'])) {
                                     <input type="text" name="nom_complet"
                                            class="form-control bg-light"
                                            placeholder="Fatou Diallo"
-                                           >
+                                           required>
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label fw-medium small">
@@ -79,13 +88,13 @@ if (empty($_SESSION['csrf_token'])) {
                                     <input type="text" name="rue"
                                            class="form-control bg-light"
                                            placeholder="Rue de Thiong, Plateau"
-                                           >
+                                           required>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-medium small">
                                         Ville <span class="text-danger">*</span>
                                     </label>
-                                    <select name="ville" class="form-select bg-light" >
+                                    <select name="ville" class="form-select bg-light" required>
                                         <option value="" disabled selected>Choisir une ville</option>
                                         <option value="Dakar">Dakar</option>
                                         <option value="Pikine">Pikine</option>
@@ -101,10 +110,11 @@ if (empty($_SESSION['csrf_token'])) {
                                     <label class="form-label fw-medium small">
                                         Téléphone <span class="text-danger">*</span>
                                     </label>
-                                    <input type="tel" name="telephone"
+                                    <input type="tel" name="telephone" id="telephone"
                                            class="form-control bg-light"
-                                           placeholder="+221 77 000 00 00"
-                                           >
+                                           placeholder="77 123 45 67"
+                                           required>
+                                    <small class="text-muted">9 chiffres (ex: 771234567)</small>
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label fw-medium small">Notes (optionnel)</label>
@@ -124,34 +134,44 @@ if (empty($_SESSION['csrf_token'])) {
                             </h5>
 
                             <div class="row g-3">
-
+                                <?php if ($enableWave): ?>
                                 <div class="col-md-4">
                                     <input type="radio" class="btn-check" name="mode_paiement"
-                                           id="wave" value="Wave" >
+                                           id="wave" value="wave" required>
                                     <label class="btn btn-outline-secondary w-100 rounded-3 py-3" for="wave">
                                         <i class="bi bi-phone fs-4 d-block mb-1 text-primary"></i>
                                         <span class="fw-semibold small">Wave</span>
                                     </label>
                                 </div>
+                                <?php endif; ?>
 
+                                <?php if ($enableOm): ?>
                                 <div class="col-md-4">
                                     <input type="radio" class="btn-check" name="mode_paiement"
-                                           id="orange" value="Orange Money" >
+                                           id="orange" value="orange_money" required>
                                     <label class="btn btn-outline-secondary w-100 rounded-3 py-3" for="orange">
                                         <i class="bi bi-phone fs-4 d-block mb-1 text-warning"></i>
                                         <span class="fw-semibold small">Orange Money</span>
                                     </label>
                                 </div>
+                                <?php endif; ?>
 
+                                <?php if ($enableCash): ?>
                                 <div class="col-md-4">
                                     <input type="radio" class="btn-check" name="mode_paiement"
-                                           id="especes" value="especes" >
+                                           id="especes" value="especes" required>
                                     <label class="btn btn-outline-secondary w-100 rounded-3 py-3" for="especes">
                                         <i class="bi bi-cash fs-4 d-block mb-1 text-success"></i>
                                         <span class="fw-semibold small">Espèces</span>
                                     </label>
                                 </div>
-
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- Message d'aide pour les modes de paiement mobile -->
+                            <div class="alert alert-info mt-3 small" id="paymentHelp" style="display: none;">
+                                <i class="bi bi-info-circle-fill me-1"></i>
+                                Le paiement sera effectué via votre téléphone. Utilisez le numéro renseigné ci-dessus.
                             </div>
                         </div>
                     </div>
@@ -237,6 +257,96 @@ if (empty($_SESSION['csrf_token'])) {
 
     </div>
 </section>
+
+<script>
+(function() {
+    const checkoutForm = document.getElementById('checkoutForm');
+    const phoneInput = document.getElementById('telephone');
+    const paymentHelp = document.getElementById('paymentHelp');
+    const radioButtons = document.querySelectorAll('input[name="mode_paiement"]');
+    
+    if (!checkoutForm || !phoneInput) return;
+    
+    function isValidPhone(phone) {
+        const digits = phone.replace(/\D/g, '');
+        if (digits.length !== 9) return false;
+        const prefix = digits.substring(0, 2);
+        const validPrefixes = ['70', '71', '75', '76', '77', '78'];
+        return validPrefixes.includes(prefix);
+    }
+    
+    function updatePhoneStyle() {
+        const phone = phoneInput.value;
+        if (isValidPhone(phone)) {
+            phoneInput.classList.remove('is-invalid');
+            phoneInput.classList.add('is-valid');
+        } else {
+            phoneInput.classList.remove('is-valid');
+            if (phone.length > 0) phoneInput.classList.add('is-invalid');
+            else phoneInput.classList.remove('is-invalid');
+        }
+    }
+    
+    function togglePaymentHelp() {
+        const selected = document.querySelector('input[name="mode_paiement"]:checked');
+        if (selected && (selected.value === 'wave' || selected.value === 'orange_money')) {
+            paymentHelp.style.display = 'block';
+            updatePhoneStyle();
+        } else {
+            paymentHelp.style.display = 'none';
+            phoneInput.classList.remove('is-valid', 'is-invalid');
+        }
+    }
+    
+    radioButtons.forEach(radio => radio.addEventListener('change', togglePaymentHelp));
+    
+    phoneInput.addEventListener('input', function(e) {
+        let raw = this.value.replace(/\D/g, '');
+        if (raw.length > 9) raw = raw.slice(0, 9);
+        this.value = raw;
+        updatePhoneStyle();
+    });
+    
+    checkoutForm.addEventListener('submit', function(e) {
+        const selectedMode = document.querySelector('input[name="mode_paiement"]:checked');
+        if (!selectedMode) {
+            e.preventDefault();
+            alert('Veuillez sélectionner un mode de paiement.');
+            return;
+        }
+        if (selectedMode.value === 'wave' || selectedMode.value === 'orange_money') {
+            const phone = phoneInput.value;
+            if (!isValidPhone(phone)) {
+                e.preventDefault();
+                alert('Veuillez entrer un numéro valide à 9 chiffres (70,71,75,76,77,78).');
+                phoneInput.focus();
+                return;
+            }
+        }
+    });
+    
+    togglePaymentHelp();
+})();
+</script>
+
+<style>
+.is-valid {
+    border-color: #16a34a !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2316a34a' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2rem;
+}
+.is-invalid {
+    border-color: #dc2626 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc2626'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc2626' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2rem;
+}
+</style>
 
 <?php
 $content = ob_get_clean();

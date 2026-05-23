@@ -13,42 +13,51 @@ if (!Auth::check()) {
 $flashSuccess = $_SESSION['flash_success'] ?? null;
 unset($_SESSION['flash_success']);
 
-$numeroCommande = $_GET['numero'] ?? null;
+$commandeId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-// Charger les détails de la commande
-$commande = null;
-if ($numeroCommande) {
-    try {
-        $db   = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("
-            SELECT c.*, 
-                   CONCAT(u.prenom, ' ', u.nom) AS client,
-                   a.rue, a.ville, a.pays, a.telephone AS tel_livraison,
-                   p.mode_paiement
-            FROM commandes c
-            JOIN utilisateurs u ON c.id_utilisateur = u.id_utilisateur
-            LEFT JOIN adresses a ON c.id_adresse_livraison = a.id_adresse
-            LEFT JOIN paiements p ON c.id_commande = p.id_commande
-            WHERE c.numero_commande = :numero
-            AND c.id_utilisateur = :id_utilisateur
-        ");
-        $stmt->execute([
-            ':numero'         => $numeroCommande,
-            ':id_utilisateur' => Auth::id(),
-        ]);
-        $commande = $stmt->fetch();
-
-        if ($commande) {
-            $stmtLignes = $db->prepare("
-                SELECT * FROM lignes_commande WHERE id_commande = :id
-            ");
-            $stmtLignes->execute([':id' => $commande['id_commande']]);
-            $commande['lignes'] = $stmtLignes->fetchAll();
-        }
-    } catch (\Exception $e) {
-        error_log($e->getMessage());
-    }
+// Si pas d'ID, on essaye de récupérer depuis numero_commande (compatibilité)
+if ($commandeId === 0 && isset($_GET['numero_commande'])) {
+    $numeroCommande = $_GET['numero_commande'];
+    $db = Database::getInstance()->getConnection();
+    $stmt = $db->prepare("SELECT id_commande FROM commandes WHERE numero_commande = :num");
+    $stmt->execute([':num' => $numeroCommande]);
+    $row = $stmt->fetch();
+    if ($row) $commandeId = $row['id_commande'];
 }
+
+if ($commandeId <= 0) {
+    die("Erreur : aucun identifiant de commande fourni (id ou numero_commande).");
+}
+
+try {
+    $db = Database::getInstance()->getConnection();
+    $stmt = $db->prepare("
+        SELECT c.*, 
+               CONCAT(u.prenom, ' ', u.nom) AS client,
+               a.rue, a.ville, a.pays, a.tel AS tel_livraison,
+               p.mode_paiement
+        FROM commandes c
+        JOIN utilisateurs u ON c.id_utilisateur = u.id_utilisateur
+        LEFT JOIN adresses a ON c.id_adresse = a.id_adresse
+        LEFT JOIN paiements p ON c.id_commande = p.id_commande
+        WHERE c.id_commande = :id
+        AND c.id_utilisateur = :user
+    ");
+    $stmt->execute([':id' => $commandeId, ':user' => Auth::id()]);
+    $commande = $stmt->fetch();
+
+    if (!$commande) {
+        die("Commande introuvable pour l'ID $commandeId et l'utilisateur " . Auth::id());
+    }
+    
+    $stmtLignes = $db->prepare("SELECT * FROM lignes_commande WHERE id_commande = :id");
+    $stmtLignes->execute([':id' => $commande['id_commande']]);
+    $commande['lignes'] = $stmtLignes->fetchAll();
+    
+} catch (\Exception $e) {
+    die("Exception : " . $e->getMessage());
+}
+// ... puis la suite normale (header, HTML, etc.)
 
 $pageTitle   = 'Commande confirmée - NGAARY SHOP';
 $currentPage = '';
@@ -98,8 +107,6 @@ include __DIR__ . '/../views/layouts/header.php';
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-8">
-
-                <?php if ($commande) : ?>
 
                 <!-- NUMÉRO DE COMMANDE -->
                 <div class="card border-0 rounded-4 shadow-sm mb-4">
@@ -171,7 +178,6 @@ include __DIR__ . '/../views/layouts/header.php';
                     </div>
                 </div>
 
-                <?php endif; ?>
 
                 <!-- ACTIONS -->
                 <div class="d-flex gap-3 justify-content-center flex-wrap">

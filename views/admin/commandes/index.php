@@ -1,7 +1,20 @@
 <?php
+
+/**
+ * Tableau de bord - Admin
+ * 
+ * @var array<string, mixed> $stats Statistiques
+ * @var array<int, array> $dernieresCommandes Dernières commandes
+ * @var array<int, array> $plusVendus Produits les plus vendus
+ */
+
+$commandes = $commandes ?? [];
+
 $pageTitle = 'Commandes - Admin';
 $adminPage = 'commandes';
 include view_path('admin/layouts/header.php');
+$flashSuccess = $_SESSION['flash_success'] ?? null;
+$flashError   = $_SESSION['flash_error']   ?? null;
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -19,7 +32,7 @@ include view_path('admin/layouts/header.php');
                     <th>Montant</th>
                     <th>Statut</th>
                     <th>Date</th>
-                    <th>Actions</th>
+                    <th>Détails</th>
                 </tr>
             </thead>
             <tbody>
