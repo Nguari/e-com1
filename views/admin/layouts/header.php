@@ -1,3 +1,9 @@
+<?php
+// Inclusion de la configuration (autoloader et fonctions globales)
+require_once dirname(__DIR__, 3) . '/config/config.php';
+
+use App\Utils\Auth;
+?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>

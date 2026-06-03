@@ -326,19 +326,12 @@ ob_start();
                                     </div>
 
                                     <!-- CONNEXION SOCIALE -->
-                                    <div class="login-field row g-2">
-                                        <div class="col-6">
+                                    <div class="login-field">
+                                        <div class="col-12">
                                             <button type="button"
                                                     class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2 rounded-3 py-2">
                                                 <img src="https://www.google.com/favicon.ico" width="18" alt="Google">
                                                 <span class="small fw-medium">Google</span>
-                                            </button>
-                                        </div>
-                                        <div class="col-6">
-                                            <button type="button"
-                                                    class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2 rounded-3 py-2">
-                                                <i class="bi bi-facebook" style="color: #1877f2; font-size: 1.1rem;"></i>
-                                                <span class="small fw-medium">Facebook</span>
                                             </button>
                                         </div>
                                     </div>
