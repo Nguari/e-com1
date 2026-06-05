@@ -2,10 +2,13 @@
     RewriteEngine On
     RewriteBase /
 
-    # Ne pas réécrire les fichiers/dossiers réels
+    # Si la requête est exactement la racine → redirige vers /public/
+    RewriteRule ^$ public/ [L]
+
+    # Ne redirige que si la cible n'est ni un fichier ni un dossier existant,
+    # et si elle ne commence pas déjà par /public/
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    # Ne pas réécrire les requêtes déjà dans /public/
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
