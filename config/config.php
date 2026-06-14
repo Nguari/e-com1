@@ -25,22 +25,45 @@ if (file_exists($envFile)) {
     $dotenv->load();
 }
 
-// ===== CONSTANTES DE L'APPLICATION (avec fallback pour Hostinger) =====
+// ===== DÉTECTION AUTOMATIQUE DE L'URL (pour éviter la 404) =====
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'darkgoldenrod-crab-568952.hostingersite.com';
+
+// Chemin de base : répertoire du script (ex: / ou /sous-dossier)
+$scriptDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+// Si le script est dans /public, on remonte à la racine du site
+if (basename($scriptDir) === 'public') {
+    $basePath = dirname($scriptDir);
+} else {
+    $basePath = $scriptDir;
+}
+// Si $basePath est vide ou '/', on le laisse vide
+if ($basePath === '/' || $basePath === '\\') {
+    $basePath = '';
+}
+define('APP_BASE_PATH', $basePath);
+
+// Construction de l'URL de base
+$appUrl = rtrim($protocol . '://' . $host . $basePath, '/');
+define('APP_URL', getenv('APP_URL') ?: $appUrl);
+
+// ===== CONSTANTES DE L'APPLICATION =====
 define('DS', DIRECTORY_SEPARATOR);
 define('APP_NAME',    getenv('APP_NAME') ?: 'Ngaary SHOP');
 define('APP_ENV',     getenv('APP_ENV') ?: 'production');
-define('APP_URL',     getenv('APP_URL') ?: 'https://darkgoldenrod-crab-568952.hostingersite.com');
-define('ROOT_PATH',   dirname(__DIR__));
-define('PUBLIC_PATH', ROOT_PATH . DS . 'public');
+
+// Chemins absolus (inchangés, mais vérifiez qu'ils sont corrects sur Hostinger)
+define('ROOT_PATH',   dirname(__DIR__));          // ex: /home/u493370766/domains/votredomaine/public_html
+define('PUBLIC_PATH', ROOT_PATH . DS . 'public'); // ex: .../public_html/public
 define('VIEW_PATH',   ROOT_PATH . DS . 'views');
 define('SRC_PATH',    ROOT_PATH . DS . 'src');
 
-// ===== CONSTANTES DE LA BASE DE DONNÉES (CORRIGÉES POUR HOSTINGER) =====
+// ===== CONSTANTES DE LA BASE DE DONNÉES (inchangées, mais vérifiez les valeurs) =====
 define('DB_HOST',     getenv('DB_HOST') ?: '127.0.0.1');
 define('DB_PORT',     getenv('DB_PORT') ?: 3306);
 define('DB_DATABASE', getenv('DB_DATABASE') ?: 'u493370766_e_com');
 define('DB_USERNAME', getenv('DB_USERNAME') ?: 'u493370766_ngaary');
-define('DB_PASSWORD', getenv('DB_PASSWORD') ?: 'Passer@2026'); // ← remplacez par votre vrai mot de passe
+define('DB_PASSWORD', getenv('DB_PASSWORD') ?: 'Passer@2026'); // À adapter si nécessaire
 
 // ===== CONFIGURATION DE SÉCURITÉ =====
 define('SESSION_LIFETIME',    (int)(getenv('SESSION_LIFETIME') ?: 7200));
@@ -51,15 +74,26 @@ date_default_timezone_set('Africa/Dakar');
 
 // ===== HELPERS =====
 
+/**
+ * Génère une URL absolue vers une route ou ressource
+ */
 function url(string $path = ''): string {
-    return rtrim(APP_URL, '/') . '/' . ltrim($path, '/');
+    $base = rtrim(APP_URL, '/');
+    $path = ltrim($path, '/');
+    return $base . '/' . $path;
 }
 
+/**
+ * Chemin absolu vers une vue
+ */
 function view_path(string $view): string {
     $view = str_replace(['/', '\\'], DS, $view);
     return VIEW_PATH . DS . ltrim($view, DS);
 }
 
+/**
+ * Chemin absolu vers un fichier source
+ */
 function src_path(string $path): string {
     $path = str_replace(['/', '\\'], DS, $path);
     return SRC_PATH . DS . ltrim($path, DS);
@@ -70,7 +104,6 @@ function src_path(string $path): string {
  */
 function setting(string $key, $default = null) {
     static $settings = null;
-    // Évite de tenter une connexion si les constantes DB ne sont pas définies
     if (!defined('DB_HOST') || !DB_HOST) return $default;
     
     if ($settings === null) {
@@ -88,6 +121,9 @@ function setting(string $key, $default = null) {
     return $settings[$key] ?? $default;
 }
 
+/**
+ * Formate un montant en FCFA
+ */
 function formatFCFA(int $montant): string {
     return number_format($montant, 0, ',', ' ') . ' FCFA';
 }
