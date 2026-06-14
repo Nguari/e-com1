@@ -1,12 +1,12 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
+    # Supprimez RewriteBase ou ajustez-le
+    # RewriteBase /
 
-    # Si la requête est exactement la racine → redirige vers /public/
+    # Si la requête est la racine, aller dans public/
     RewriteRule ^$ public/ [L]
 
-    # Ne redirige que si la cible n'est ni un fichier ni un dossier existant,
-    # et si elle ne commence pas déjà par /public/
+    # Pour toutes les autres requêtes n'existant pas et non déjà dans public/
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} !^/public/
