@@ -1,14 +1,18 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    # Supprimez RewriteBase ou ajustez-le
-    # RewriteBase /
+    RewriteBase /
 
-    # Si la requête est la racine, aller dans public/
-    RewriteRule ^$ public/ [L]
+    # Redirige la racine vers public/index.php (votre page d'accueil)
+    RewriteRule ^$ public/index.php [L]
 
-    # Pour toutes les autres requêtes n'existant pas et non déjà dans public/
+    # Si la requête cible un fichier ou dossier existant dans public/, on laisse passer
+    RewriteCond %{REQUEST_URI} ^/public/
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Pour toutes les autres requêtes, on réécrit vers public/index.php?url=...
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_URI} !^/public/
-    RewriteRule ^(.*)$ public/$1 [L]
+    RewriteRule ^(.*)$ public/index.php?url=$1 [QSA,L]
 </IfModule>
