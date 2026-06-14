@@ -2,7 +2,7 @@
     RewriteEngine On
     RewriteBase /
 
-    # Redirige la racine (/) vers public/index.php (votre page d'accueil)
+    # Redirige la racine (/) vers public/index.php (page d'accueil)
     RewriteRule ^$ public/index.php [L]
 
     # Si la requête cible un fichier ou dossier existant dans public/, on laisse passer
@@ -11,7 +11,8 @@
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Toute autre requête (ex: /produit) → réécrire vers public/index.php (optionnel)
+    # Pour toutes les autres requêtes (ex: /produit, /boutique, /cart, etc.)
+    # on réécrit vers public/index.php?url=...
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ public/index.php?url=$1 [QSA,L]
