@@ -574,12 +574,12 @@ use App\Utils\Auth;
                        href="<?= url('index.php') ?>">Accueil</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link px-4 py-3 <?= ($currentPage ?? '') === 'boutique.php' ? 'active' : '' ?>"
-                       href="<?= url('boutique.php') ?>">Boutique</a>
+                    <a class="nav-link px-4 py-3 <?= ($currentPage ?? '') === 'Boutique.php' ? 'active' : '' ?>"
+                       href="<?= url('Boutique.php') ?>">Boutique</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link px-4 py-3 <?= ($currentPage ?? '') === 'promotions.php' ? 'active' : '' ?>"
-                       href="<?= url('promotions.php') ?>">Promotions</a>
+                    <a class="nav-link px-4 py-3 <?= ($currentPage ?? '') === 'Promotions.php' ? 'active' : '' ?>"
+                       href="<?= url('Promotions.php') ?>">Promotions</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link px-4 py-3 <?= ($currentPage ?? '') === 'contact.php' ? 'active' : '' ?>"
