@@ -8,6 +8,8 @@
  */
 
 // Valeur par défaut pour éviter les erreurs
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 $content = $content ?? '';
 $pageTitle = $pageTitle ?? 'NGAARY SHOP';
 ?>
