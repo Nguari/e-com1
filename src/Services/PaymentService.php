@@ -174,15 +174,15 @@ class PaymentService {
      * Vérifier le statut d'un paiement
      */
     public function checkPaymentStatus($transactionId) {
-    $stmt = $this->db->prepare("
-        SELECT p.*, c.numero_commande 
-        FROM paiements p
-        JOIN commandes c ON p.id_commande = c.id_commande
-        WHERE p.transaction_id = :transaction_id
-    ");
-    $stmt->execute([':transaction_id' => $transactionId]);
-    return $stmt->fetch(PDO::FETCH_ASSOC);
-}
+        $stmt = $this->db->prepare("
+            SELECT p.*, c.numero_commande 
+            FROM paiements p
+            JOIN commandes c ON p.id_commande = c.id_commande
+            WHERE p.transaction_id = :transaction_id
+        ");
+        $stmt->execute([':transaction_id' => $transactionId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     
     /**
      * Obtenir le token Orange Money
