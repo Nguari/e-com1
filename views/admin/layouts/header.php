@@ -479,14 +479,10 @@ window.addEventListener('resize', function() {
         <a href="<?= url('admin/commandes.php') ?>"
            class="nav-link <?= ($adminPage ?? '') === 'commandes' ? 'active' : '' ?>">
             <i class="bi bi-receipt"></i> Commandes
-            <?php
-            try {
-                $db2   = \App\Config\Database::getInstance()->getConnection();
-                $stmt2 = $db2->query("SELECT COUNT(*) FROM commandes WHERE statut = 'en_attente'");
-                $nb    = (int)$stmt2->fetchColumn();
-                if ($nb > 0) echo "<span class='badge bg-danger ms-auto'>$nb</span>";
-            } catch (\Exception $e) {}
-            ?>
+            <?php $cmdAttenteCount = (int)($commandes_attente_count ?? 0); ?>
+            <?php if ($cmdAttenteCount > 0): ?>
+                <span class="badge bg-danger ms-auto"><?= $cmdAttenteCount ?></span>
+            <?php endif; ?>
         </a>
 
         <div class="sidebar-section mt-2">Utilisateurs</div>
@@ -526,11 +522,17 @@ window.addEventListener('resize', function() {
         <!-- DROPDOWN UTILISATEUR -->
         <div class="dropdown user-dropdown">
             <div class="d-flex align-items-center gap-2 dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer;">
+                <?php
+                $adminUser = \App\Utils\Auth::user();
+                $adminPrenom = $adminUser?->getPrenom() ?? 'A';
+                $adminNom    = $adminUser?->getNom() ?? '';
+                $adminInitial = strtoupper(substr($adminPrenom, 0, 1));
+                ?>
                 <div class="user-avatar">
-                    <?= strtoupper(substr(\App\Utils\Auth::user()->getPrenom() ?? 'A', 0, 1)) ?>
+                    <?= htmlspecialchars($adminInitial) ?>
                 </div>
                 <span class="text-muted small d-none d-md-inline">
-                    <?= htmlspecialchars(\App\Utils\Auth::user()->getPrenom() . ' ' . \App\Utils\Auth::user()->getNom()) ?>
+                    <?= htmlspecialchars(trim($adminPrenom . ' ' . $adminNom)) ?>
                 </span>
                 <i class="bi bi-chevron-down text-muted fs-6"></i>
             </div>
