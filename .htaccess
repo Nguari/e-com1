@@ -1,14 +1,16 @@
 RewriteEngine On
 
-# Si le fichier demandé existe dans le dossier public/, on le sert directement
-RewriteCond %{DOCUMENT_ROOT}/public/$1 -f [OR]
-RewriteCond %{DOCUMENT_ROOT}/public/$1 -d
-RewriteRule ^(.*)$ public/$1 [L]
+# Servir directement les fichiers dans public/
+RewriteCond %{REQUEST_URI} ^/(.+)$
+RewriteCond %{DOCUMENT_ROOT}/public/%1 -f [OR]
+RewriteCond %{DOCUMENT_ROOT}/public/%1 -d
+RewriteRule ^(.+)$ public/$1 [L]
 
-# Redirige la racine (/) vers public/index.php
+# Rediriger la racine (/) vers public/index.php
 RewriteRule ^$ public/index.php [L]
 
-# Pour toutes les autres requêtes (qui n'existent pas dans public/), on réécrit vers public/index.php (si vous voulez un routeur plus tard)
+# Pour toutes les autres requêtes (qui n'existent pas dans public/), on réécrit vers public/index.php (router)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ public/index.php?url=$1 [QSA,L]
+
