@@ -1,11 +1,28 @@
 <?php
 // public/admin/produits.php
-require_once dirname(__DIR__, 2) . '/config/config.php';
+// IMPORTANT: charger bootstrap (autoload + helpers) avant toute instanciation App\...
+$basePath = dirname(__DIR__, 2); // => project root
+$serverRoot = dirname(__DIR__, 2);
+
+require_once $basePath . '/bootstrap.php';
+require_once $basePath . '/config/config.php';
+// DEBUG
+error_log('DEBUG bootstrap loaded for admin produits');
+
 \App\Utils\AdminMiddleware::check();
 
 use App\Config\Database;
 use App\Controllers\Admin\ProduitController;
 
+// Forcer le chargement du contrôleur (évite les soucis d’autoload sur l’hébergement)
+$controllerFile = $basePath . '/src/Controllers/Admin/ProduitController.php';
+if (!file_exists($controllerFile)) {
+    die('Controller file missing: ' . $controllerFile);
+}
+require_once $controllerFile;
+
 $db         = Database::getInstance()->getConnection();
 $controller = new ProduitController($db);
 $controller->index();
+
+
