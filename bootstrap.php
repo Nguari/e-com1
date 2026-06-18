@@ -65,8 +65,12 @@ spl_autoload_register(function ($class) {
 // Fonctions globales
 function url(string $path = ''): string {
     $base = rtrim(APP_URL, '/');
-    // N'ajoute 'public/' que si le chemin ne commence pas par admin/, assets/, etc.
-    if (!preg_match('#^(admin/|assets/|imgs/|css/|js/|uploads/|vendor/|public/)#', $path) && !str_starts_with($path, 'http')) {
+    // Si le chemin commence par 'admin/', on ne touche pas
+    if (str_starts_with($path, 'admin/')) {
+        return $base . '/' . ltrim($path, '/');
+    }
+    // Pour les autres chemins, on ajoute 'public/' sauf pour les assets
+    if (!preg_match('#^(assets/|imgs/|css/|js/|uploads/|vendor/)#', $path) && !str_starts_with($path, 'http')) {
         $path = 'public/' . ltrim($path, '/');
     }
     return $base . '/' . ltrim($path, '/');
