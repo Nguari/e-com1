@@ -64,7 +64,12 @@ spl_autoload_register(function ($class) {
 
 // Fonctions globales
 function url(string $path = ''): string {
-    return rtrim(BASE_URL, '/') . '/' . ltrim($path, '/');
+    $base = rtrim(APP_URL, '/');
+    // N'ajoute 'public/' que si le chemin ne commence pas par admin/, assets/, etc.
+    if (!preg_match('#^(admin/|assets/|imgs/|css/|js/|uploads/|vendor/|public/)#', $path) && !str_starts_with($path, 'http')) {
+        $path = 'public/' . ltrim($path, '/');
+    }
+    return $base . '/' . ltrim($path, '/');
 }
 
 function view_path(string $path): string {

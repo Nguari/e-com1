@@ -72,27 +72,9 @@ define('PASSWORD_MIN_LENGTH', (int)(getenv('PASSWORD_MIN_LENGTH') ?: 8));
 // ===== FUSEAU HORAIRE =====
 date_default_timezone_set('Africa/Dakar');
 
-// ===== HELPERS =====
 
-/**
- * Génère une URL absolue vers une route ou ressource
- */
-function url(string $path = ''): string {
-    $base = rtrim(APP_URL, '/');
-    // N'ajoute 'public/' que si le chemin ne commence pas par admin/, assets/, etc.
-    if (!preg_match('#^(admin/|assets/|imgs/|css/|js/|uploads/|vendor/|public/)#', $path) && !str_starts_with($path, 'http')) {
-        $path = 'public/' . ltrim($path, '/');
-    }
-    return $base . '/' . ltrim($path, '/');
-}
 
-/**
- * Chemin absolu vers une vue
- */
-function view_path(string $view): string {
-    $view = str_replace(['/', '\\'], DS, $view);
-    return VIEW_PATH . DS . ltrim($view, DS);
-}
+
 
 /**
  * Chemin absolu vers un fichier source
@@ -124,12 +106,6 @@ function setting(string $key, $default = null) {
     return $settings[$key] ?? $default;
 }
 
-/**
- * Formate un montant en FCFA
- */
-function formatFCFA(int $montant): string {
-    return number_format($montant, 0, ',', ' ') . ' FCFA';
-}
 
 // ===== CHARGEMENT DES PARAMÈTRES DE PAIEMENT =====
 if (file_exists(__DIR__ . '/payment.php')) {
