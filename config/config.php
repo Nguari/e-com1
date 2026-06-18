@@ -79,8 +79,11 @@ date_default_timezone_set('Africa/Dakar');
  */
 function url(string $path = ''): string {
     $base = rtrim(APP_URL, '/');
-    $path = ltrim($path, '/');
-    return $base . '/' . $path;
+    // N'ajoute 'public/' que si le chemin ne commence pas par admin/, assets/, etc.
+    if (!preg_match('#^(admin/|assets/|imgs/|css/|js/|uploads/|vendor/|public/)#', $path) && !str_starts_with($path, 'http')) {
+        $path = 'public/' . ltrim($path, '/');
+    }
+    return $base . '/' . ltrim($path, '/');
 }
 
 /**

@@ -2,12 +2,10 @@
 // public/admin/produits.php
 // IMPORTANT: charger bootstrap (autoload + helpers) avant toute instanciation App\...
 $basePath = dirname(__DIR__, 2); // => project root
-$serverRoot = dirname(__DIR__, 2);
 
+// Assurer le chargement bootstrap (autoload + helpers)
 require_once $basePath . '/bootstrap.php';
 require_once $basePath . '/config/config.php';
-// DEBUG
-error_log('DEBUG bootstrap loaded for admin produits');
 
 \App\Utils\AdminMiddleware::check();
 
