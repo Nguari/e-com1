@@ -5,109 +5,176 @@ use Dotenv\Dotenv;
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-/**
- * Fichier de configuration de l'application.
- * 
- * Charge les variables d'environnement depuis le fichier .env
- * et définit les constantes de l'application.
- */
-
 require_once __DIR__ . '/../vendor/autoload.php';
 
-// Charger les variables d'environnement si le fichier .env existe
 $envFile = dirname(__DIR__) . '/.env';
 if (file_exists($envFile)) {
     $dotenv = Dotenv::createImmutable(dirname(__DIR__));
-    $dotenv->load();
+    $dotenv->safeLoad();
+
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#') || strpos($line, '=') === false) {
+            continue;
+        }
+
+        [$key, $value] = array_map('trim', explode('=', $line, 2));
+        $value = trim($value, " \t\n\r\0\x0B\"'");
+
+        if (!array_key_exists($key, $_ENV)) {
+            $_ENV[$key] = $value;
+        }
+        if (!array_key_exists($key, $_SERVER)) {
+            $_SERVER[$key] = $value;
+        }
+        putenv($key . '=' . $value);
+    }
 }
 
-// ===== DÉTECTION AUTOMATIQUE DE L'URL (pour éviter la 404) =====
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$host = $_SERVER['HTTP_HOST'] ?? 'darkgoldenrod-crab-568952.hostingersite.com';
+if (!defined('DS')) {
+    define('DS', DIRECTORY_SEPARATOR);
+}
 
-// Chemin de base : répertoire du script (ex: / ou /sous-dossier)
-$scriptDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
-// Si le script est dans /public, on remonte à la racine du site
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$scriptName = $_SERVER['SCRIPT_NAME'] ?? '/index.php';
+$scriptDir = rtrim(dirname($scriptName), '/\\');
+
 if (basename($scriptDir) === 'public') {
     $basePath = dirname($scriptDir);
 } else {
     $basePath = $scriptDir;
 }
-// Si $basePath est vide ou '/', on le laisse vide
-if ($basePath === '/' || $basePath === '\\') {
+
+if ($basePath === '/' || $basePath === '\\' || $basePath === '.' || $basePath === '') {
     $basePath = '';
 }
+
+$envValue = static fn (string $key, $default = null) => $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: $default;
+
 define('APP_BASE_PATH', $basePath);
+define('APP_URL', $envValue('APP_URL', rtrim($protocol . '://' . $host . $basePath, '/')));
+define('APP_NAME', $envValue('APP_NAME', 'Ngaary SHOP'));
+define('APP_ENV', $envValue('APP_ENV', 'development'));
 
-// Construction de l'URL de base
-$appUrl = rtrim($protocol . '://' . $host . $basePath, '/');
-define('APP_URL', getenv('APP_URL') ?: $appUrl);
+define('ROOT_PATH', dirname(__DIR__));
+define('PUBLIC_PATH', ROOT_PATH . DS . 'public');
+define('VIEW_PATH', ROOT_PATH . DS . 'views');
+define('SRC_PATH', ROOT_PATH . DS . 'src');
 
-// ===== CONSTANTES DE L'APPLICATION =====
-define('DS', DIRECTORY_SEPARATOR);
-define('APP_NAME',    getenv('APP_NAME') ?: 'Ngaary SHOP');
-define('APP_ENV',     getenv('APP_ENV') ?: 'production');
+define('DB_HOST', $envValue('DB_HOST', '127.0.0.1'));
+define('DB_PORT', (int)($envValue('DB_PORT', 3306)));
+define('DB_DATABASE', $envValue('DB_DATABASE', 'ecommerce_db'));
+define('DB_USERNAME', $envValue('DB_USERNAME', 'root'));
+define('DB_PASSWORD', $envValue('DB_PASSWORD', ''));
 
-// Chemins absolus (inchangés, mais vérifiez qu'ils sont corrects sur Hostinger)
-define('ROOT_PATH',   dirname(__DIR__));          // ex: /home/u493370766/domains/votredomaine/public_html
-define('PUBLIC_PATH', ROOT_PATH . DS . 'public'); // ex: .../public_html/public
-define('VIEW_PATH',   ROOT_PATH . DS . 'views');
-define('SRC_PATH',    ROOT_PATH . DS . 'src');
+define('SESSION_LIFETIME', (int)($envValue('SESSION_LIFETIME', 7200)));
+define('PASSWORD_MIN_LENGTH', (int)($envValue('PASSWORD_MIN_LENGTH', 8)));
 
-// ===== CONSTANTES DE LA BASE DE DONNÉES (inchangées, mais vérifiez les valeurs) =====
-define('DB_HOST',     getenv('DB_HOST') ?: '127.0.0.1');
-define('DB_PORT',     getenv('DB_PORT') ?: 3306);
-define('DB_DATABASE', getenv('DB_DATABASE') ?: 'u493370766_e_com');
-define('DB_USERNAME', getenv('DB_USERNAME') ?: 'u493370766_ngaary');
-define('DB_PASSWORD', getenv('DB_PASSWORD') ?: 'Passer@2026'); // À adapter si nécessaire
-
-// ===== CONFIGURATION DE SÉCURITÉ =====
-define('SESSION_LIFETIME',    (int)(getenv('SESSION_LIFETIME') ?: 7200));
-define('PASSWORD_MIN_LENGTH', (int)(getenv('PASSWORD_MIN_LENGTH') ?: 8));
-
-// ===== FUSEAU HORAIRE =====
 date_default_timezone_set('Africa/Dakar');
 
-
-
-
-
-/**
- * Chemin absolu vers un fichier source
- */
-function src_path(string $path): string {
-    $path = str_replace(['/', '\\'], DS, $path);
-    return SRC_PATH . DS . ltrim($path, DS);
+if (!function_exists('src_path')) {
+    function src_path(string $path): string {
+        $path = str_replace(['/', '\\'], DS, $path);
+        return SRC_PATH . DS . ltrim($path, DS);
+    }
 }
 
-/**
- * Récupère un paramètre depuis la table settings (sans boucle infinie)
- */
-function setting(string $key, $default = null) {
-    static $settings = null;
-    if (!defined('DB_HOST') || !DB_HOST) return $default;
-    
-    if ($settings === null) {
-        try {
-            $db = \App\Config\Database::getInstance()->getConnection();
-            $stmt = $db->query("SELECT setting_key, setting_value FROM settings");
-            $settings = [];
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $settings[$row['setting_key']] = $row['setting_value'];
-            }
-        } catch (\Exception $e) {
+if (!function_exists('url')) {
+    function url(string $path = ''): string {
+        $base = rtrim(APP_URL, '/');
+
+        if ($path === '') {
+            return $base;
+        }
+
+        if (preg_match('#^(https?:)?//#i', $path) || str_starts_with($path, '/')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, 'admin/')) {
+            return $base . '/' . ltrim($path, '/');
+        }
+
+        if (preg_match('#^(assets/|imgs/|css/|js/|uploads/|vendor/|public/)#', $path)) {
+            return $base . '/' . ltrim($path, '/');
+        }
+
+        return $base . '/public/' . ltrim($path, '/');
+    }
+}
+
+if (!function_exists('asset')) {
+    function asset(string $path): string {
+        return rtrim(APP_URL, '/') . '/' . ltrim($path, '/');
+    }
+}
+
+if (!function_exists('redirect')) {
+    function redirect(string $url): void {
+        $target = $url;
+
+        if (!preg_match('#^(https?:)?//#i', $url) && !str_starts_with($url, '/')) {
+            $target = url($url);
+        }
+
+        if (!headers_sent()) {
+            header('Location: ' . $target);
+        }
+
+        exit;
+    }
+}
+
+if (!function_exists('setting')) {
+    function setting(string $key, $default = null) {
+        static $settings = null;
+
+        if (!defined('DB_HOST') || !DB_HOST) {
             return $default;
         }
+
+        if ($settings === null) {
+            try {
+                if (class_exists('App\\Config\\Database')) {
+                    $db = \App\Config\Database::getInstance()->getConnection();
+                    $stmt = $db->query('SELECT setting_key, setting_value FROM settings');
+                    $settings = [];
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        $settings[$row['setting_key']] = $row['setting_value'];
+                    }
+                }
+            } catch (\Throwable $e) {
+                return $default;
+            }
+        }
+
+        return $settings[$key] ?? $default;
     }
-    return $settings[$key] ?? $default;
 }
 
+if (!function_exists('view_path')) {
+    function view_path(string $path): string {
+        return VIEW_PATH . '/' . ltrim($path, '/');
+    }
+}
 
-// ===== CHARGEMENT DES PARAMÈTRES DE PAIEMENT =====
+if (!function_exists('formatFCFA')) {
+    function formatFCFA(int $amount): string {
+        return number_format($amount, 0, ',', ' ') . ' FCFA';
+    }
+}
+
+if (!function_exists('old')) {
+    function old(string $key, string $default = ''): string {
+        return htmlspecialchars($_POST[$key] ?? $default);
+    }
+}
+
+if (empty($_SESSION['csrf_token'] ?? null)) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 if (file_exists(__DIR__ . '/payment.php')) {
     require_once __DIR__ . '/payment.php';
 }

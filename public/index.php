@@ -54,23 +54,25 @@ if (empty($_SESSION['csrf_token'])) {
 /**
  * Récupère la première image d'un produit (pour l'affichage)
  */
-function getProductImage($produit) {
-    // Vérifier d'abord si le champ 'images' existe et n'est pas vide
-    if (!empty($produit['images'])) {
-        $images = json_decode($produit['images'], true);
-        if (is_array($images) && !empty($images)) {
-            $firstImage = $images[0];
-            return url('assets/img/produits/' . $firstImage);
+if (!function_exists('getProductImage')) {
+    function getProductImage($produit) {
+        // Vérifier d'abord si le champ 'images' existe et n'est pas vide
+        if (!empty($produit['images'])) {
+            $images = json_decode($produit['images'], true);
+            if (is_array($images) && !empty($images)) {
+                $firstImage = $images[0];
+                return url('assets/img/produits/' . $firstImage);
+            }
         }
+        
+        // Fallback sur l'ancien champ 'image'
+        if (!empty($produit['image'])) {
+            return url('assets/img/produits/' . $produit['image']);
+        }
+        
+        // Image par défaut
+        return url('assets/img/produits/default.jpg');
     }
-    
-    // Fallback sur l'ancien champ 'image'
-    if (!empty($produit['image'])) {
-        return url('assets/img/produits/' . $produit['image']);
-    }
-    
-    // Image par défaut
-    return url('assets/img/produits/default.jpg');
 }
 
 /**

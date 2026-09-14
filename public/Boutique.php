@@ -39,21 +39,23 @@ if (\App\Utils\Auth::check()) {
 /**
  * Récupère la première image d'un produit (images multiples ou unique)
  */
-function getProductImage($produit) {
-    // Vérifier les images multiples (JSON)
-    if (!empty($produit['images'])) {
-        $images = json_decode($produit['images'], true);
-        if (is_array($images) && !empty($images)) {
-            return '/assets/img/produits/' . $images[0];
+if (!function_exists('getProductImage')) {
+    function getProductImage($produit) {
+        // Vérifier les images multiples (JSON)
+        if (!empty($produit['images'])) {
+            $images = json_decode($produit['images'], true);
+            if (is_array($images) && !empty($images)) {
+                return '/assets/img/produits/' . $images[0];
+            }
         }
+        
+        // Fallback sur l'image unique
+        if (!empty($produit['image'])) {
+            return '/assets/img/produits/' . $produit['image'];
+        }
+        
+        return '/assets/img/produits/default.jpg';
     }
-    
-    // Fallback sur l'image unique
-    if (!empty($produit['image'])) {
-        return '/assets/img/produits/' . $produit['image'];
-    }
-    
-    return '/assets/img/produits/default.jpg';
 }
 
 /**

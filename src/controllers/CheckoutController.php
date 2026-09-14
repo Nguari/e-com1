@@ -24,7 +24,7 @@ class CheckoutController {
         $this->orderService   = new OrderService($db);
         $this->paymentService = new PaymentService($db);
 
-        if (session_status() === PHP_SESSION_NONE) {
+        if (function_exists('session_status') && session_status() === PHP_SESSION_NONE && !headers_sent()) {
             session_start();
         }
     }
@@ -199,12 +199,12 @@ class CheckoutController {
             $transactionId = strtoupper($modePaiement) . '_' . time() . '_' . $commandeId;
             $stmt = $db->prepare("
                 INSERT INTO paiements (id_commande, montant, mode_paiement, statut, transaction_id, date_paiement)
-                VALUES (:commande, :montant, :mode, 'paye', :transaction_id, NOW())
+                VALUES (:commande, :montant, :mode, 'valide', :transaction_id, NOW())
             ");
             $stmt->execute([
                 ':commande' => $commandeId,
                 ':montant' => $montant,
-                ':mode' => $modePaiement,
+                ':mode' => ucfirst(str_replace('_', ' ', $modePaiement)),
                 ':transaction_id' => $transactionId
             ]);
         } catch (\Exception $e) {

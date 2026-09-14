@@ -1,6 +1,28 @@
 <?php
-// public/promotions.php
 require_once dirname(__DIR__) . '/config/config.php';
+
+use App\Config\Database;
+use App\Repositories\SettingRepository;
+
+$db = Database::getInstance()->getConnection();
+$settingRepo = new SettingRepository($db);
+
+$promoActive = (bool) $settingRepo->get('promo_active', '0');
+$promoCode = trim((string) $settingRepo->get('promo_code', ''));
+$promoStartDate = trim((string) $settingRepo->get('promo_start_date', ''));
+$promoDurationDays = max(0, (int) $settingRepo->get('promo_duration_days', 0));
+
+$promoIsLive = false;
+$promoEndDate = null;
+
+if ($promoActive && !empty($promoCode) && !empty($promoStartDate) && $promoDurationDays > 0) {
+    $start = DateTimeImmutable::createFromFormat('Y-m-d', $promoStartDate);
+    if ($start !== false) {
+        $promoEndDate = $start->modify('+' . $promoDurationDays . ' days');
+        $now = new DateTimeImmutable('now');
+        $promoIsLive = $now >= $start && $now <= $promoEndDate;
+    }
+}
 
 $produits = [
     ['id_produit' => 1,  'nom' => 'Chaise en Chêne',      'prix' => 30000, 'prix_ancien' => 37500, 'badge' => '-20%', 'categorie' => 'Mobilier',   'note' => 4],
@@ -36,10 +58,16 @@ include __DIR__ . '/../views/layouts/header.php';
     <div class="container">
         <span class="badge bg-white text-danger fw-bold px-3 py-2 mb-3">🔥 OFFRES LIMITÉES</span>
         <h1 class="fw-bold mb-2" style="font-family: 'Playfair Display', serif; font-size: 2.5rem;">
-            Nos Promotions
+            <?= $promoIsLive ? 'Nos Promotions' : 'Aucune promo en cours' ?>
         </h1>
-        <p class="opacity-75 mb-4">Des réductions exceptionnelles sur une sélection de produits.</p>
-        <div class="countdown">
+        <p class="opacity-75 mb-4">
+            <?= $promoIsLive
+                ? 'Des réductions exceptionnelles sur une sélection de produits.'
+                : 'Revenez plus tard ou activez une promotion depuis l’administration.' ?>
+        </p>
+
+        <?php if ($promoIsLive && $promoEndDate) : ?>
+        <div class="countdown" id="promoCountdown" data-end-time="<?= htmlspecialchars($promoEndDate->format('c')) ?>">
             <div class="countdown-item">
                 <div class="countdown-num" id="hours">00</div>
                 <div class="countdown-label">Heures</div>
@@ -53,17 +81,20 @@ include __DIR__ . '/../views/layouts/header.php';
                 <div class="countdown-label">Secondes</div>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 </section>
 
+<?php if ($promoIsLive) : ?>
 <!-- CODE PROMO -->
 <section class="py-3 bg-warning">
     <div class="container text-center">
         <p class="mb-0 fw-semibold">
-            🎁 Code promo : <strong>NGAARY15</strong> — 15% de réduction supplémentaire !
+            🎁 Code promo : <strong><?= htmlspecialchars($promoCode) ?></strong> — réduction supplémentaire sur toute la sélection !
         </p>
     </div>
 </section>
+<?php endif; ?>
 
 <!-- PRODUITS -->
 <section class="py-5" style="background: #f0faf3;">
@@ -85,9 +116,11 @@ include __DIR__ . '/../views/layouts/header.php';
             <div class="col-6 col-lg-3">
                 <div class="card product-card h-100">
                     <div class="product-img">
+                        <?php if ($promoIsLive) : ?>
                         <span class="badge bg-danger position-absolute top-0 start-0 m-2 fs-6">
                             <?= $produit['badge'] ?>
                         </span>
+                        <?php endif; ?>
                         <i class="bi bi-image" style="font-size: 4rem; color: #fca5a5;"></i>
                     </div>
                     <div class="card-body d-flex flex-column px-3 py-3">
@@ -101,13 +134,17 @@ include __DIR__ . '/../views/layouts/header.php';
                         <div class="mt-auto">
                             <div class="d-flex align-items-center gap-2 mb-1">
                                 <span class="text-success fw-bold"><?= formatFCFA($produit['prix']) ?></span>
+                                <?php if ($promoIsLive) : ?>
                                 <span class="text-muted text-decoration-line-through small">
                                     <?= formatFCFA($produit['prix_ancien']) ?>
                                 </span>
+                                <?php endif; ?>
                             </div>
+                            <?php if ($promoIsLive) : ?>
                             <p class="text-danger small mb-2 fw-semibold">
                                 Économisez <?= formatFCFA($produit['prix_ancien'] - $produit['prix']) ?>
                             </p>
+                            <?php endif; ?>
                             <form action="<?= url('cart_add.php') ?>" method="POST">
                                 <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                                 <input type="hidden" name="id_produit" value="<?= $produit['id_produit'] ?>">
@@ -126,20 +163,27 @@ include __DIR__ . '/../views/layouts/header.php';
     </div>
 </section>
 
+<?php if ($promoIsLive && $promoEndDate) : ?>
 <script>
-let endTime = new Date();
-endTime.setHours(endTime.getHours() + 24);
+const promoEndTime = new Date(document.getElementById('promoCountdown').dataset.endTime).getTime();
 function updateCountdown() {
-    const diff    = endTime - new Date();
-    const hours   = Math.floor(diff / 3600000);
+    const diff = promoEndTime - Date.now();
+    if (diff <= 0) {
+        window.location.reload();
+        return;
+    }
+
+    const hours = Math.floor(diff / 3600000);
     const minutes = Math.floor((diff % 3600000) / 60000);
     const seconds = Math.floor((diff % 60000) / 1000);
-    document.getElementById('hours').textContent   = String(hours).padStart(2, '0');
+
+    document.getElementById('hours').textContent = String(hours).padStart(2, '0');
     document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
     document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
 }
 updateCountdown();
 setInterval(updateCountdown, 1000);
 </script>
+<?php endif; ?>
 
 <?php include __DIR__ . '/../views/layouts/footer.php'; ?>

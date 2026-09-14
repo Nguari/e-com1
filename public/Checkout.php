@@ -8,7 +8,9 @@ use App\Controllers\CheckoutController;
 $db         = Database::getInstance()->getConnection();
 $controller = new CheckoutController($db);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+if ($requestMethod === 'POST') {
     $controller->process();
 } else {
     $controller->index();

@@ -30,6 +30,10 @@ class Session {
      * et appelé uniquement lors du login dans Auth::login()
      */
     public static function start(): void {
+        if (headers_sent()) {
+            return;
+        }
+
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }

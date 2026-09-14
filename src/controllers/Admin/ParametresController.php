@@ -53,6 +53,12 @@ class ParametresController {
                 $data['enable_om'] = isset($_POST['enable_om']) ? 1 : 0;
                 $data['enable_cash'] = isset($_POST['enable_cash']) ? 1 : 0;
                 break;
+            case 'update_promo':
+                $data['promo_active'] = isset($_POST['promo_active']) ? 1 : 0;
+                $data['promo_code'] = trim($_POST['promo_code'] ?? '');
+                $data['promo_start_date'] = trim($_POST['promo_start_date'] ?? '');
+                $data['promo_duration_days'] = max(0, (int)($_POST['promo_duration_days'] ?? 0));
+                break;
             case 'update_appearance':
                 $data['primary_color'] = $_POST['primary_color'] ?? '#16a34a';
                 $data['header_bg'] = $_POST['header_bg'] ?? '#ffffff';

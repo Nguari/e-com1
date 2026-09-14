@@ -29,6 +29,23 @@ class User extends BaseEntity {
     public function getTel(): ?string { return $this->tel; }
     public function getRole(): string { return $this->role; }
     public function isActive(): bool { return $this->isActive; }
+    public function isAdmin(): bool {
+        return strtolower((string)$this->role) === 'admin';
+    }
+
+    public function verifyPassword(string $password): bool {
+        $hash = $this->passwordHash ?? null;
+
+        if ($hash === null || $hash === '') {
+            return false;
+        }
+
+        if (password_get_info($hash)['algo'] !== false) {
+            return password_verify($password, $hash);
+        }
+
+        return hash_equals($hash, $password);
+    }
 
     // Setters (API attendue par UserRepository / AuthController)
     public function setNom(?string $nom): self { $this->nom = $nom; return $this; }

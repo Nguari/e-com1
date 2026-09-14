@@ -65,7 +65,7 @@ try {
     if ($nouveauStatut === 'livree') {
         // Vérifier si la table paiements existe
         try {
-            $stmt = $db->prepare("UPDATE paiements SET statut = 'paye' WHERE id_commande = :id");
+            $stmt = $db->prepare("UPDATE paiements SET statut = 'valide' WHERE id_commande = :id");
             $stmt->execute([':id' => $commandeId]);
         } catch (Exception $e) {
             // Table paiements n'existe pas, ignorer

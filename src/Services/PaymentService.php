@@ -146,7 +146,7 @@ class PaymentService {
             // Mettre à jour le statut dans paiements
             $stmt = $this->db->prepare("
                 UPDATE paiements 
-                SET statut = 'paye', date_paiement = NOW()
+                SET statut = 'valide', date_paiement = NOW()
                 WHERE transaction_id = :transaction_id
             ");
             $stmt->execute([':transaction_id' => $transactionId]);

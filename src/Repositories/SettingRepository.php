@@ -201,7 +201,11 @@ class SettingRepository {
             'primary_color' => '#16a34a',
             'header_bg' => '#ffffff',
             'order_email' => '1',
-            'newsletter_email' => '1'
+            'newsletter_email' => '1',
+            'promo_active' => '0',
+            'promo_code' => '',
+            'promo_start_date' => '',
+            'promo_duration_days' => '0'
         ];
         
         $success = true;

@@ -16,8 +16,8 @@ if (!$transactionId) {
 $paymentService = new PaymentService($db);
 $paiement = $paymentService->checkPaymentStatus($transactionId);
 
-if ($paiement && $paiement['statut'] === 'paye') {
-    error_log("payment_success: paiement non valide - " . print_r($paiement, true));
+if ($paiement && in_array($paiement['statut'], ['valide', 'paye'], true)) {
+    error_log("payment_success: paiement déjà validé - " . print_r($paiement, true));
     header('Location: ' . url('boutique.php'));
     exit();
 }

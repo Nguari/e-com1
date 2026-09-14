@@ -298,6 +298,7 @@ unset($_SESSION['flash_success']);
                             <?php
                             $paiementLabels = [
                                 'en_attente' => 'En attente',
+                                'valide' => 'Payé',
                                 'paye' => 'Payé',
                                 'echoue' => 'Échoué',
                                 'rembourse' => 'Remboursé'

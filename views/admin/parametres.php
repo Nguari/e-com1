@@ -59,6 +59,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $data['enable_om'] = isset($_POST['enable_om']) ? 1 : 0;
                 $data['enable_cash'] = isset($_POST['enable_cash']) ? 1 : 0;
                 break;
+            case 'update_promo':
+                $data['promo_active'] = isset($_POST['promo_active']) ? 1 : 0;
+                $data['promo_code'] = trim($_POST['promo_code'] ?? '');
+                $data['promo_start_date'] = trim($_POST['promo_start_date'] ?? '');
+                $data['promo_duration_days'] = max(0, (int)($_POST['promo_duration_days'] ?? 0));
+                break;
             case 'update_appearance':
                 $data['primary_color'] = trim($_POST['primary_color'] ?? '#16a34a');
                 $data['header_bg'] = trim($_POST['header_bg'] ?? '#ffffff');
@@ -238,6 +244,57 @@ $settings = $settingRepo->getAll();
         </div>
     </div>
     
+    <!-- Promotion -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h6 class="fw-bold mb-0">
+                    <i class="bi bi-tag-fill me-2 text-success"></i>Promotion du site
+                </h6>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+                    <input type="hidden" name="action" value="update_promo">
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="promo_active" id="promo_active"
+                               <?= (($settings['promo_active'] ?? 0) == 1) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="promo_active">
+                            <strong>Promotion active</strong>
+                            <br><small class="text-muted">Activer ou désactiver la promotion du site</small>
+                        </label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Code promo</label>
+                        <input type="text" name="promo_code" class="form-control"
+                               value="<?= htmlspecialchars($settings['promo_code'] ?? '') ?>"
+                               placeholder="NGAARY15">
+                        <small class="text-muted">Laisser vide pour afficher aucune promo en cours</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-semibold">Date de début</label>
+                            <input type="date" name="promo_start_date" class="form-control"
+                                   value="<?= htmlspecialchars($settings['promo_start_date'] ?? '') ?>">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-semibold">Durée (jours)</label>
+                            <input type="number" name="promo_duration_days" class="form-control"
+                                   value="<?= (int)($settings['promo_duration_days'] ?? 0) ?>" min="0" max="365">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success rounded-3">
+                        <i class="bi bi-save me-1"></i>Enregistrer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Modes de paiement -->
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4">

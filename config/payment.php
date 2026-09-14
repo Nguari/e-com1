@@ -1,6 +1,22 @@
 <?php
 // config/payment.php
 
+if (!function_exists('url')) {
+    function url(string $path = ''): string {
+        $base = rtrim(defined('APP_URL') ? APP_URL : '', '/');
+
+        if ($path === '') {
+            return $base;
+        }
+
+        if (preg_match('#^(https?:)?//#i', $path) || str_starts_with($path, '/')) {
+            return $path;
+        }
+
+        return $base . '/public/' . ltrim($path, '/');
+    }
+}
+
 // Configuration Wave
 define('WAVE_API_URL', 'https://api.wave.com/v1/');
 define('WAVE_API_KEY', 'votre_api_key_wave');
